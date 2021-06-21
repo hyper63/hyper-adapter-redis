@@ -1,0 +1,23 @@
+{
+  "$schema": "https://x.nest.land/eggs@0.3.8/src/schema.json",
+  "name": "hyper-adapter-redis",
+  "entry": "./mod.js",
+  "description": "Hyper Cache port adapter for redis",
+  "homepage": "https://github.com/hyper63/hyper-adapter-redis",
+  "repo": "https://github.com/hyper63/hyper-adapter-redis",
+  "version": "1.2.7",
+  "unstable": false,
+  "unlisted": false,
+  "files": [
+    "./*"
+  ],
+  "ignore": [
+    "./package.json",
+    "./scripts/*",
+    "./.git*"
+  ],
+  "checkFormat": false,
+  "checkTests": false,
+  "checkInstallation": false,
+  "check": false
+}
