@@ -1,34 +1,80 @@
-# hyper-adapter-redis
+<h1 align="center">hyper-adapter-redis</h1>
+<p align="center">A Cache port adapter for Redis in the <a href="https://hyper.io/">hyper</a>  service framework</p>
+</p>
+<p align="center">
+  <a href="https://nest.land/package/hyper-adapter-redis"><img src="https://nest.land/badge.svg" alt="Nest Badge" /></a>
+  <a href="https://github.com/hyper63/hyper-adapter-redis/actions/workflows/test.yml"><img src="https://github.com/hyper63/hyper-adapter-redis/actions/workflows/test.yml/badge.svg" alt="Test" /></a>
+  <a href="https://github.com/hyper63/hyper-adapter-redis/tags/"><img src="https://img.shields.io/github/tag/hyper63/hyper-adapter-redis" alt="Current Version" /></a>
+</p>
 
-[![nest badge](https://nest.land/badge.svg)](https://nest.land/package/hyper-adapter-redis)
-[![current version](https://img.shields.io/github/tag/hyper63/hyper-adapter-redis)](https://github.com/hyper63/hyper-adapter-redis/tags/)
-[![test status](https://github.com/hyper63/hyper-adapter-redis/workflows/.github/workflows/test.yml/badge.svg)](https://github.com/hyper63/hyper-adapter-redis/actions/workflows/test.yml)
+---
 
-This adapter works for the 'cache' port.
+## Table of Contents
 
-## Install
+- [Getting Started](#getting-started)
+- [Installation](#installation)
+- [Features](#features)
+- [Methods](#methods)
+- [Contributing](#contributing)
+- [License](#license)
 
-```sh
-npm install @hyper63/adapter-redis
-```
-
-## Environment Variables
-
-```sh
-REDIS_URL="https://redis:6379"
-```
-
-## Configuration
-
-hyper63.config.js
+## Getting Started
 
 ```js
-const redis = require('@hyper63/adapter-redis')
+import { default as redis } from "https://x.nest.land/hyper-adapter-redis@1.2.9/mod.js";
 
-module.exports = {
-  ...
-  adapters: [
-    {port: 'cache', plugins: [redis({url: process.env.REDIS_URL})]}
-  ]
-}
+export default {
+  app: opine,
+  adapter: [
+    {
+      port: "search",
+      plugins: [redis({ url: process.env.REDIS_URL })],
+    },
+  ],
+};
 ```
+
+## Installation
+
+This is a Deno module available to import from
+[nest.land](https://nest.land/package/hyper-adapter-redis)
+
+deps.js
+
+```js
+export { default as redis } from "https://x.nest.land/hyper-adapter-redis@1.2.9/mod.js";
+```
+
+## Features
+
+- Create a named store in `Redis`
+- Destroy a named store in `Redis`
+- Create a document in a store in `Redis`
+- Get a document from a store in `Redis`
+- Update a document in a store in `Redis`
+- Delete a document from a store in `Redis`
+- List documents in a sttore in `Redis`
+
+## Methods
+
+This adapter fully implements the Search port and can be used as the
+[hyper Cache service](https://docs.hyper.io/cache-api) adapter
+
+See the full port [here](https://nest.land/package/hyper-port-cache)
+
+## Contributing
+
+Contributions are welcome! See the hyper
+[contribution guide](https://docs.hyper.io/contributing-to-hyper)
+
+## Testing
+
+```
+./scripts/test.sh
+```
+
+To lint, check formatting, and run unit tests
+
+## License
+
+Apache-2.0
