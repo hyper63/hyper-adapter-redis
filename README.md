@@ -27,7 +27,7 @@ export default {
   app: opine,
   adapter: [
     {
-      port: "search",
+      port: "cache",
       plugins: [redis({ url: process.env.REDIS_URL })],
     },
   ],
