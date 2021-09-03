@@ -69,7 +69,13 @@ Deno.test("remove redis store - keys", async () => {
 });
 
 Deno.test("create redis doc", async () => {
-  const adapter = createAdapter(baseStubClient);
+  const adapter = createAdapter({
+    ...baseStubClient,
+    get: (k) =>
+      k === "store_foo"
+        ? Promise.resolve(JSON.stringify({ active: true }))
+        : Promise.resolve(null),
+  });
 
   const result = await adapter.createDoc({
     store: "foo",
@@ -100,7 +106,10 @@ Deno.test("get redis doc", async () => {
 Deno.test("get redis doc - not found", async () => {
   const adapter = createAdapter({
     ...baseStubClient,
-    get: resolves(undefined),
+    get: (k) =>
+      k === "store_foo"
+        ? Promise.resolve(JSON.stringify({ foo: "bar" }))
+        : Promise.resolve(undefined),
   });
 
   // Wanted to use assertThrowsAsync, but it requires throwing an Error type
@@ -117,19 +126,31 @@ Deno.test("get redis doc - not found", async () => {
 });
 
 Deno.test("update redis doc", async () => {
-  const adapter = createAdapter(baseStubClient);
+  const adapter = createAdapter({
+    ...baseStubClient,
+    get: (k) =>
+      k === "store_foo"
+        ? Promise.resolve('{"active": true}')
+        : Promise.resolve(null),
+  });
 
   const result = await adapter.updateDoc({
     store: "foo",
     key: "bar",
     value: { hello: "world" },
   });
-
+  console.log(result);
   assert(result.ok);
 });
 
 Deno.test("delete redis doc", async () => {
-  const adapter = createAdapter(baseStubClient);
+  const adapter = createAdapter({
+    ...baseStubClient,
+    get: (k) =>
+      k === "store_foo"
+        ? Promise.resolve('{"active": true}')
+        : Promise.resolve(null),
+  });
 
   const result = await adapter.deleteDoc({
     store: "foo",
