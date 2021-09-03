@@ -7,7 +7,7 @@ import redis from "../mod.js";
 const hyperConfig = {
   app: appOpine,
   adapters: [
-    { port: 'cache', plugins: [redis({ hostname: '127.0.0.1', port: 6379 })] },
+    { port: "cache", plugins: [redis({ hostname: "127.0.0.1", port: 6379 })] },
   ],
 };
 

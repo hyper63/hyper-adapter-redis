@@ -1,12 +1,11 @@
 import { crocks, R } from "./deps.js";
 
 const { Async } = crocks;
-const { always, append, identity, ifElse, isNil, map, not, remove } = R;
+const { always, append, identity, ifElse, isNil, map, not } = R;
 
 const createKey = (store, key) => `${store}_${key}`;
 
 export default function (client) {
-  let stores = [];
   // redis commands
   // key: Promise<string>
   const get = Async.fromPromise(client.get.bind(client));
@@ -20,18 +19,33 @@ export default function (client) {
   const scan = Async.fromPromise(client.scan.bind(client));
 
   const index = () => {
-    return Promise.reject({ ok: false, status: 501, msg: 'Not Implemented' });
+    return Promise.reject({ ok: false, status: 501, msg: "Not Implemented" });
   };
 
-  const checkIfStoreExists = store => (key) => get(createKey('store', store))
-    .chain(
-      _ => _ ? Async.Resolved(key) : Async.Rejected({ ok: false, status: 400, msg: 'Store does not exist' })
-    )
+  const checkIfStoreExists = (store) =>
+    (key) =>
+      get(createKey("store", store))
+        .chain(
+          (_) =>
+            _ ? Async.Resolved(key) : Async.Rejected({
+              ok: false,
+              status: 400,
+              msg: "Store does not exist",
+            }),
+        );
 
-  const checkForConflict = ([id]) => get(id)
-    .chain(
-      _ => _ ? Async.Rejected({ ok: false, status: 409, msg: 'Document Conflict' }) : Async.Resolved([id])
-    )
+  const checkForConflict = ([id]) =>
+    get(id)
+      .chain(
+        (_) =>
+          _
+            ? Async.Rejected({
+              ok: false,
+              status: 409,
+              msg: "Document Conflict",
+            })
+            : Async.Resolved([id]),
+      );
 
   /**
    * @param {string} name
