@@ -12,7 +12,10 @@ const { mergeRight } = R;
  * @param {RedisClientArgs} config
  * @returns {object}
  */
-export default function RedisCacheAdapter(config = {}, options = { client: redis }) {
+export default function RedisCacheAdapter(
+  config = {},
+  options = { client: redis },
+) {
   options.client = options.client || redis;
 
   async function load(prevLoad = {}) {

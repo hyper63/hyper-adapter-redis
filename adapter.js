@@ -20,9 +20,18 @@ export default function (client) {
   const scan = Async.fromPromise(client.scan.bind(client));
 
   const index = () => {
-    console.log("stores", stores);
-    return Promise.resolve(stores);
+    return Promise.reject({ ok: false, status: 501, msg: 'Not Implemented' });
   };
+
+  const checkIfStoreExists = store => (key) => get(createKey('store', store))
+    .chain(
+      _ => _ ? Async.Resolved(key) : Async.Rejected({ ok: false, status: 400, msg: 'Store does not exist' })
+    )
+
+  const checkForConflict = ([id]) => get(id)
+    .chain(
+      _ => _ ? Async.Rejected({ ok: false, status: 409, msg: 'Document Conflict' }) : Async.Resolved([id])
+    )
 
   /**
    * @param {string} name
@@ -33,10 +42,6 @@ export default function (client) {
       .map(append(createKey("store", name)))
       .map(append("active"))
       .chain((args) => set(...args))
-      .map((v) => {
-        stores = append(name, stores);
-        return v;
-      })
       .map(always({ ok: true }))
       .toPromise();
 
@@ -54,10 +59,6 @@ export default function (client) {
           (keys) => Async.of(keys),
         ),
       )
-      .map((v) => {
-        stores = remove([name], stores);
-        return v;
-      })
       .map(always({ ok: true }))
       .toPromise();
 
@@ -66,8 +67,10 @@ export default function (client) {
    * @returns {Promise<object>}
    */
   const createDoc = ({ store, key, value, ttl }) =>
-    Async.of([])
-      .map(append(createKey(store, key)))
+    Async.of([createKey(store, key)])
+      .chain(checkIfStoreExists(store))
+      // don't allow over-writting of existing keys
+      .chain(checkForConflict)
       .map(append(JSON.stringify(value)))
       .map(
         ifElse(
@@ -88,16 +91,18 @@ export default function (client) {
    * @returns {Promise<object>}
    */
   const getDoc = ({ store, key }) =>
-    get(createKey(store, key)).chain((v) => {
-      if (!v) {
-        return Async.Rejected({
-          ok: false,
-          status: 404,
-          msg: "document not found",
-        });
-      }
-      return Async.Resolved(JSON.parse(v));
-    })
+    checkIfStoreExists(store)()
+      .chain(() => get(createKey(store, key)))
+      .chain((v) => {
+        if (!v) {
+          return Async.Rejected({
+            ok: false,
+            status: 404,
+            msg: "document not found",
+          });
+        }
+        return Async.Resolved(JSON.parse(v));
+      })
       .toPromise();
 
   /**
@@ -106,6 +111,7 @@ export default function (client) {
    */
   const updateDoc = ({ store, key, value, ttl }) =>
     Async.of([])
+      .chain(checkIfStoreExists(store))
       .map(append(createKey(store, key)))
       .map(append(JSON.stringify(value)))
       .map(
@@ -126,7 +132,10 @@ export default function (client) {
    * @returns {Promise<object>}
    */
   const deleteDoc = ({ store, key }) =>
-    del(createKey(store, key)).map(always({ ok: true })).toPromise();
+    checkIfStoreExists(store)()
+      .chain(() => del(createKey(store, key)))
+      .map(always({ ok: true }))
+      .toPromise();
 
   /**
    * @param {CacheQuery}
