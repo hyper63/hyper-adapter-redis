@@ -3,7 +3,8 @@ image:
 
 tasks:
   - command: redis-server
-  - command: ./scripts/test.sh
+  - init: git config core.hooksPath .hooks
+    command: ./scripts/test.sh
 
 github:
   prebuilds:

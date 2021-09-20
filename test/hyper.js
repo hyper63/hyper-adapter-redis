@@ -1,6 +1,6 @@
 // Harness deps
-import { default as appOpine } from "https://x.nest.land/hyper-app-opine@1.2.3/mod.js";
-import { default as core } from "https://x.nest.land/hyper@1.4.7/mod.js";
+import { default as appOpine } from "https://x.nest.land/hyper-app-opine@1.2.4/mod.js";
+import { default as core } from "https://x.nest.land/hyper@1.4.9/mod.js";
 
 import redis from "../mod.js";
 
