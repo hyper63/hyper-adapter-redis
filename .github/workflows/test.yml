@@ -2,15 +2,15 @@ name: Test
 
 on:
   push:
-    branches: '**'
-    tags-ignore: '*'
+    branches: "**"
+    tags-ignore: "*"
 
 jobs:
-  build:
+  unit:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        deno-version: [1.11.x]
+        deno-version: [1.13.x, 1.14.x]
     steps:
       - uses: actions/checkout@v2
       - name: Use Deno ${{ matrix.deno-version }}
@@ -20,3 +20,18 @@ jobs:
       - run: ./scripts/test.sh
         env:
           CI: true
+  # integrated:
+  #   runs-on: ubuntu-latest
+  #   strategy:
+  #     matrix:
+  #       deno-version: [1.14.x]
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #     - name: Use Deno ${{ matrix.deno-version }}
+  #       uses: denoland/setup-deno@v1
+  #       with:
+  #         deno-version: ${{ matrix.deno-version }}
+  #     - run: npx pm2 start ./scripts/harness.sh && ./scripts/ci.sh
+  #       env:
+  #         HYPER: http://localhost:6363/test
+  #         CI: true
