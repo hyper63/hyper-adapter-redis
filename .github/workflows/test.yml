@@ -31,8 +31,7 @@ jobs:
         uses: denoland/setup-deno@v1
         with:
           deno-version: ${{ matrix.deno-version }}
-      - run: npx pm2 start ./scripts/harness.sh
-      - run: ./scripts/ci.sh
+      - run: npx pm2 start ./scripts/harness.sh && ./scripts/ci.sh
         env:
           HYPER: http://localhost:6363/test
           CI: true
