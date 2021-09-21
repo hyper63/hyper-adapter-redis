@@ -32,6 +32,7 @@ jobs:
         with:
           deno-version: ${{ matrix.deno-version }}
       - run: npx pm2 start ./scripts/harness.sh
+      - run: curl localhost:6363
       - run: ./scripts/ci.sh
         env:
           HYPER: http://localhost:6363/test
