@@ -1,6 +1,11 @@
 image:
   file: .gitpod.Dockerfile
 
+ports:
+  - port: 6379
+    visibility: private
+    onOpen: ignore
+
 tasks:
   - command: redis-server
   - init: git config core.hooksPath .hooks
