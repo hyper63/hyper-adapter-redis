@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
 
 deno lint && \
-deno fmt --check && \./s
+deno fmt --check && \
 deno test adapter_test.js
