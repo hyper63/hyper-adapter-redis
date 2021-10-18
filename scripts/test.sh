@@ -1,5 +1,3 @@
 #!/usr/bin/env bash
 
-deno lint && \
-deno fmt --check && \
-deno test adapter_test.js
+deno lint && deno fmt --check && deno test adapter_test.js
