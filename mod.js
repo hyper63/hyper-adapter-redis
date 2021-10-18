@@ -14,16 +14,20 @@ const { mergeRight } = R;
  */
 export default function RedisCacheAdapter(
   config = {},
-  options = { client: redis },
+  options = { client: redis, cluster: false },
 ) {
   options.client = options.client || redis;
 
   async function load(prevLoad = {}) {
     // prefer args passed to adapter over previous load
     config = mergeRight(prevLoad, config);
-
+    const client = await options.client.connect(config);
+    if (options.cluster) {
+      await options.client.clusterMeet(config.hostname, 6380);
+      await options.client.clusterNodes();
+    }
     // create client
-    return { client: await options.client.connect(config) };
+    return { client };
   }
 
   /**

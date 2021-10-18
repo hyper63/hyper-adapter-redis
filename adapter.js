@@ -89,7 +89,7 @@ export default function (client) {
       .map(
         ifElse(
           () => not(isNil(ttl)),
-          append(({ px: ttl })),
+          append({ px: ttl }),
           identity,
         ),
       )
