@@ -23,8 +23,8 @@ export default function RedisCacheAdapter(
     config = mergeRight(prevLoad, config);
     const client = await options.client.connect(config);
     if (options.cluster) {
-      await options.client.clusterMeet(config.hostname, 6380);
-      await options.client.clusterNodes();
+      await client.clusterMeet(config.hostname, config.port);
+      await client.clusterNodes();
     }
     // create client
     return { client };
