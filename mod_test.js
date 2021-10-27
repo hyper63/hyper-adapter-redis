@@ -1,5 +1,5 @@
 import { z } from "./deps.js";
-import { assert, resolves } from "./dev_deps.js";
+import { assert, assertEquals, resolves } from "./dev_deps.js";
 
 import RedisCacheAdapter from "./mod.js";
 
@@ -32,9 +32,24 @@ Deno.test("validate schema", () => {
 
 Deno.test("returns a redis client", async () => {
   const res = await RedisCacheAdapter({}, {
-    client: { connect: resolves(baseStubClient) },
+    client: { connect: resolves({ foo: "bar" }) },
   }).load();
+
   assert(res.client);
+  assertEquals(res.client.foo, "bar");
+});
+
+Deno.test("returns a redis cluster client", async () => {
+  const res = await RedisCacheAdapter({ hostname: "foo", port: 6380 }, {
+    client: {
+      connect: (config) => Promise.resolve(config),
+    },
+    cluster: true,
+  }).load();
+
+  assert(res.client);
+  assertEquals(res.client.nodes[0].hostname, "foo");
+  assertEquals(res.client.nodes[0].port, 6380);
 });
 
 Deno.test("returns an adapter", () => {
