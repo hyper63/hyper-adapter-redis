@@ -1,22 +1,8 @@
-import { z } from "./deps.js";
-import { assert, assertEquals, resolves } from "./dev_deps.js";
+import { assert, assertEquals, validateFactorySchema } from "./dev_deps.js";
 
 import RedisCacheAdapter from "./mod.js";
 
-const schema = z.object({
-  id: z.string().optional(),
-  port: z.string().optional(),
-  load: z.function()
-    .args(z.any().optional())
-    .returns(z.any()),
-  link: z.function()
-    .args(z.any())
-    .returns(
-      z.function()
-        .args(z.any())
-        .returns(z.any()),
-    ),
-});
+const resolves = (val) => () => Promise.resolve(val);
 
 const baseStubClient = {
   get: resolves(),
@@ -26,8 +12,10 @@ const baseStubClient = {
   scan: resolves(),
 };
 
-Deno.test("validate schema", () => {
-  assert(schema.safeParse(RedisCacheAdapter()).success);
+Deno.test("validate factory schema", () => {
+  assert(validateFactorySchema(RedisCacheAdapter({}, {
+    client: { connect: resolves({ foo: "bar" }) },
+  })));
 });
 
 Deno.test("returns a redis client", async () => {

@@ -2,11 +2,13 @@ import {
   assert,
   assertEquals,
   assertObjectMatch,
-  resolves,
   spy,
+  validateCacheAdapterSchema,
 } from "./dev_deps.js";
 
 import createAdapter from "./adapter.js";
+
+const resolves = (val) => () => Promise.resolve(val);
 
 const baseStubClient = {
   get: resolves(),
@@ -15,6 +17,10 @@ const baseStubClient = {
   keys: resolves(),
   scan: resolves(),
 };
+
+Deno.test("should implement the port", () => {
+  assert(validateCacheAdapterSchema(createAdapter(baseStubClient)));
+});
 
 Deno.test("test scan", async () => {
   let results = [];
