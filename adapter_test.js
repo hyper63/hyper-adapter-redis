@@ -74,6 +74,25 @@ Deno.test("remove redis store - keys", async () => {
   assertObjectMatch(del.calls[1], { args: ["baz", "bar"] });
 });
 
+Deno.test("* doc - no store exists", async () => {
+  const adapter = createAdapter({
+    ...baseStubClient,
+    get: resolves(undefined), // looking up store produces undefined
+  });
+
+  const err = await adapter.createDoc({
+    store: "foo",
+    key: "bar",
+    value: { foo: "bar", ttl: "5m" },
+  });
+
+  assertObjectMatch(err, {
+    ok: false,
+    status: 400,
+    msg: "Store does not exist",
+  });
+});
+
 Deno.test("create redis doc", async () => {
   const adapter = createAdapter({
     ...baseStubClient,
@@ -92,6 +111,29 @@ Deno.test("create redis doc", async () => {
 
   assert(result.ok);
   assertEquals(result.doc, { bam: "baz" });
+});
+
+Deno.test("create redis doc - conflict", async () => {
+  const adapter = createAdapter({
+    ...baseStubClient,
+    get: (k) =>
+      k === "store_foo"
+        ? Promise.resolve(JSON.stringify({ active: true })) // store
+        : Promise.resolve(JSON.stringify({ foo: "bar" })), // doc already exists
+  });
+
+  const err = await adapter.createDoc({
+    store: "foo",
+    key: "bar",
+    value: { bam: "baz" },
+    ttl: 5000,
+  });
+
+  assertObjectMatch(err, {
+    ok: false,
+    status: 409,
+    msg: "Document Conflict",
+  });
 });
 
 Deno.test("get redis doc", async () => {
@@ -118,17 +160,12 @@ Deno.test("get redis doc - not found", async () => {
         : Promise.resolve(undefined),
   });
 
-  // Wanted to use assertThrowsAsync, but it requires throwing an Error type
-  try {
-    await adapter.getDoc({
-      store: "foo",
-      key: "bar",
-    });
+  const err = await adapter.getDoc({
+    store: "foo",
+    key: "bar",
+  });
 
-    assert(false);
-  } catch (err) {
-    assertObjectMatch(err, { ok: false, status: 404 });
-  }
+  assertObjectMatch(err, { ok: false, status: 404, msg: "document not found" });
 });
 
 Deno.test("update redis doc", async () => {

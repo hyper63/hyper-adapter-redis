@@ -1,4 +1,5 @@
 import { crocks, R } from "./deps.js";
+import { handleHyperErr, HyperErr } from "./utils.js";
 
 const { Async } = crocks;
 const { always, append, identity, ifElse, isNil, map, not } = R;
@@ -19,7 +20,7 @@ export default function (client) {
   const scan = Async.fromPromise(client.scan.bind(client));
 
   const index = () => {
-    return Promise.reject({ ok: false, status: 501, msg: "Not Implemented" });
+    return Promise.resolve(HyperErr({ status: 501, msg: "Not Implemented" }));
   };
 
   const checkIfStoreExists = (store) =>
@@ -27,11 +28,10 @@ export default function (client) {
       get(createKey("store", store))
         .chain(
           (_) =>
-            _ ? Async.Resolved(key) : Async.Rejected({
-              ok: false,
+            _ ? Async.Resolved(key) : Async.Rejected(HyperErr({
               status: 400,
               msg: "Store does not exist",
-            }),
+            })),
         );
 
   const checkForConflict = ([id]) =>
@@ -39,15 +39,16 @@ export default function (client) {
       .chain(
         (_) =>
           _
-            ? Async.Rejected({
-              ok: false,
+            ? Async.Rejected(HyperErr({
               status: 409,
               msg: "Document Conflict",
-            })
+            }))
             : Async.Resolved([id]),
       );
 
   /**
+   * TODO: should this return error if store already exists?
+   *
    * @param {string} name
    * @returns {Promise<object>}
    */
@@ -56,10 +57,15 @@ export default function (client) {
       .map(append(createKey("store", name)))
       .map(append("active"))
       .chain((args) => set(...args))
-      .map(always({ ok: true }))
+      .bichain(
+        handleHyperErr,
+        always(Async.Resolved({ ok: true })),
+      )
       .toPromise();
 
   /**
+   * TODO: should this return error if store doesn't exist?
+   *
    * @param {string} name
    * @returns {Promise<object>}
    */
@@ -73,7 +79,10 @@ export default function (client) {
           (keys) => Async.of(keys),
         ),
       )
-      .map(always({ ok: true }))
+      .bichain(
+        handleHyperErr,
+        always(Async.Resolved({ ok: true })),
+      )
       .toPromise();
 
   /**
@@ -94,10 +103,13 @@ export default function (client) {
         ),
       )
       .chain((args) => set(...args))
-      .map(() => ({
-        ok: true,
-        doc: value,
-      }))
+      .bichain(
+        handleHyperErr,
+        always(Async.Resolved({
+          ok: true,
+          doc: value,
+        })),
+      )
       .toPromise();
 
   /**
@@ -109,14 +121,17 @@ export default function (client) {
       .chain(() => get(createKey(store, key)))
       .chain((v) => {
         if (!v) {
-          return Async.Rejected({
-            ok: false,
+          return Async.Rejected(HyperErr({
             status: 404,
             msg: "document not found",
-          });
+          }));
         }
         return Async.Resolved(JSON.parse(v));
       })
+      .bichain(
+        handleHyperErr,
+        (v) => Async.Resolved(v),
+      )
       .toPromise();
 
   /**
@@ -136,9 +151,10 @@ export default function (client) {
         ),
       )
       .chain((args) => set(...args))
-      .map(() => ({
-        ok: true,
-      }))
+      .bichain(
+        handleHyperErr,
+        always(Async.Resolved({ ok: true })),
+      )
       .toPromise();
 
   /**
@@ -148,7 +164,10 @@ export default function (client) {
   const deleteDoc = ({ store, key }) =>
     checkIfStoreExists(store)()
       .chain(() => del(createKey(store, key)))
-      .map(always({ ok: true }))
+      .bichain(
+        handleHyperErr,
+        always(Async.Resolved({ ok: true })),
+      )
       .toPromise();
 
   /**
@@ -160,7 +179,10 @@ export default function (client) {
     return await scan(0, { pattern: matcher })
       .chain(getKeys(scan, matcher))
       .chain(getValues(get, store))
-      .map(formatResponse)
+      .bichain(
+        handleHyperErr,
+        (docs) => Async.Resolved({ ok: true, docs }),
+      )
       .toPromise();
   };
 
@@ -174,10 +196,6 @@ export default function (client) {
     deleteDoc,
     listDocs,
   });
-}
-
-function formatResponse(docs) {
-  return { ok: true, docs };
 }
 
 function getKeys(scan, matcher) {
