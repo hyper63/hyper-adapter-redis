@@ -2,7 +2,7 @@ import { crocks, R } from "./deps.js";
 import { handleHyperErr, HyperErr } from "./utils.js";
 
 const { Async } = crocks;
-const { always, append, identity, ifElse, isNil, map, not } = R;
+const { always, append, identity, ifElse, isNil, map, not, compose } = R;
 
 const createKey = (store, key) => `${store}_${key}`;
 
@@ -70,15 +70,23 @@ export default function (client) {
    * @returns {Promise<object>}
    */
   const destroyStore = (name) =>
-    del(createKey("store", name))
-      .chain(() => keys(name + "_*"))
+    // grab all keys belonging to this store
+    keys(createKey(name, "*"))
       .chain(
         ifElse(
           (keys) => keys.length > 0,
-          (args) => del(...args),
+          compose(
+            // wait for keys to be deleted
+            Async.all,
+            // delete each key, sequentially
+            // TODO: see https://github.com/hyper63/hyper-adapter-redis/issues/17
+            map(del),
+          ),
           (keys) => Async.of(keys),
         ),
       )
+      // Delete the key that tracks the store's existence
+      .chain(() => del(createKey("store", name)))
       .bichain(
         handleHyperErr,
         always(Async.Resolved({ ok: true })),
@@ -175,7 +183,7 @@ export default function (client) {
    * @returns {Promise<object>}
    */
   const listDocs = async ({ store, pattern = "*" }) => {
-    const matcher = `${store}_${pattern}`;
+    const matcher = createKey(store, pattern);
     return await scan(0, { pattern: matcher })
       .chain(getKeys(scan, matcher))
       .chain(getValues(get, store))

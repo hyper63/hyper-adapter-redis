@@ -70,8 +70,9 @@ Deno.test("remove redis store - keys", async () => {
   const result = await adapter.destroyStore("foo");
 
   assert(result.ok);
-  assertObjectMatch(del.calls[0], { args: ["store_foo"] });
-  assertObjectMatch(del.calls[1], { args: ["baz", "bar"] });
+  assertObjectMatch(del.calls[0], { args: ["baz"] });
+  assertObjectMatch(del.calls[1], { args: ["bar"] });
+  assertObjectMatch(del.calls[2], { args: ["store_foo"] });
 });
 
 Deno.test("* doc - no store exists", async () => {
