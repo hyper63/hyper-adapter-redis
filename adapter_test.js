@@ -14,7 +14,6 @@ const baseStubClient = {
   get: resolves(),
   set: resolves(),
   del: resolves(),
-  keys: resolves(),
   scan: resolves(),
 };
 
@@ -28,10 +27,16 @@ Deno.test("test scan", async () => {
     results.push(`key${i}`);
   }
 
+  const scans = [
+    ["50", results.slice(0, 50)],
+    ["0", results.slice(50)],
+  ];
+  const scan = spy(() => Promise.resolve(scans.shift()));
+
   const adapter = createAdapter({
     ...baseStubClient,
     get: resolves(JSON.stringify({ bam: "baz" })),
-    scan: resolves(["0", results]),
+    scan,
   });
 
   results = await adapter.listDocs({
@@ -39,6 +44,8 @@ Deno.test("test scan", async () => {
     pattern: "*",
   });
 
+  assertObjectMatch(scan.calls[0].args, [0, { pattern: "word_*" }]);
+  assertObjectMatch(scan.calls[1].args, ["50", { pattern: "word_*" }]);
   assert(results.docs.length === 100);
 });
 
@@ -50,12 +57,17 @@ Deno.test("create redis store", async () => {
 });
 
 Deno.test("remove redis store - no keys", async () => {
+  const del = spy(() => Promise.resolve(2));
   const adapter = createAdapter({
     ...baseStubClient,
-    keys: resolves([]),
+    del,
+    scan: resolves(["0", []]),
   });
 
   const result = await adapter.destroyStore("foo");
+
+  assertEquals(del.calls.length, 1);
+  assertObjectMatch(del.calls[0], { args: ["store_foo"] });
   assert(result.ok);
 });
 
@@ -64,7 +76,7 @@ Deno.test("remove redis store - keys", async () => {
   const adapter = createAdapter({
     ...baseStubClient,
     del,
-    keys: resolves(["baz", "bar"]),
+    scan: resolves(["0", ["baz", "bar"]]),
   });
 
   const result = await adapter.destroyStore("foo");

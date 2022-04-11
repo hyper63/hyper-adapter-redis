@@ -14,8 +14,6 @@ export default function (client) {
   const set = Async.fromPromise(client.set.bind(client));
   // key, key, key: Promise<string[]>
   const del = Async.fromPromise(client.del.bind(client));
-  // key: Promise<string[]>
-  const keys = Async.fromPromise(client.keys.bind(client));
   // cursor, { type, pattern }: Promise<[string, string[]]>
   const scan = Async.fromPromise(client.scan.bind(client));
 
@@ -70,8 +68,12 @@ export default function (client) {
    * @returns {Promise<object>}
    */
   const destroyStore = (name) =>
-    // grab all keys belonging to this store
-    keys(createKey(name, "*"))
+    Async.of(createKey(name, "*"))
+      // grab all keys belonging to this store
+      .chain((matcher) =>
+        scan(0, { pattern: matcher })
+          .chain(getKeys(scan, matcher))
+      )
       .chain(
         ifElse(
           (keys) => keys.length > 0,
