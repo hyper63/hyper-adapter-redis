@@ -70,15 +70,18 @@ export default function (client) {
    * @returns {Promise<object>}
    */
   const destroyStore = (name) =>
-    del(createKey("store", name))
-      .chain(() => keys(name + "_*"))
+    // grab all keys belonging to this store
+    keys(createKey(name, "*"))
       .chain(
         ifElse(
           (keys) => keys.length > 0,
+          // delete them
           (args) => del(...args),
           (keys) => Async.of(keys),
         ),
       )
+      // Delete the key that tracks the store's existence
+      .chain(() => del(createKey("store", name)))
       .bichain(
         handleHyperErr,
         always(Async.Resolved({ ok: true })),
@@ -175,7 +178,7 @@ export default function (client) {
    * @returns {Promise<object>}
    */
   const listDocs = async ({ store, pattern = "*" }) => {
-    const matcher = `${store}_${pattern}`;
+    const matcher = createKey(store, pattern);
     return await scan(0, { pattern: matcher })
       .chain(getKeys(scan, matcher))
       .chain(getValues(get, store))
