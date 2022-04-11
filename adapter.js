@@ -2,7 +2,7 @@ import { crocks, R } from "./deps.js";
 import { handleHyperErr, HyperErr } from "./utils.js";
 
 const { Async } = crocks;
-const { always, append, identity, ifElse, isNil, map, not } = R;
+const { always, append, identity, ifElse, isNil, map, not, compose } = R;
 
 const createKey = (store, key) => `${store}_${key}`;
 
@@ -75,8 +75,13 @@ export default function (client) {
       .chain(
         ifElse(
           (keys) => keys.length > 0,
-          // delete them
-          (args) => del(...args),
+          compose(
+            // wait for keys to be deleted
+            Async.all,
+            // delete each key, sequentially
+            // TODO: see https://github.com/hyper63/hyper-adapter-redis/issues/17
+            map(del),
+          ),
           (keys) => Async.of(keys),
         ),
       )
