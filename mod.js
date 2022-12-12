@@ -23,7 +23,7 @@ export default function RedisCacheAdapter(
   options = {},
 ) {
   options.client = options.client || (options.cluster ? redisCluster : redis);
-  options.scanCount = options.scanCount || 1000;
+  options.scanCount = options.scanCount || 10000;
 
   async function load(prevLoad = {}) {
     // prefer args passed to adapter over previous load

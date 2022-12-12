@@ -49,7 +49,7 @@ Deno.test("mod", async (t) => {
         }).load();
 
         assert(withDefault.options);
-        assertEquals(withDefault.options.scanCount, 1000);
+        assertEquals(withDefault.options.scanCount, 10000);
       });
 
       await t.step("without defaults", async () => {
