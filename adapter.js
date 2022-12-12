@@ -6,7 +6,15 @@ const { always, append, identity, ifElse, isNil, map, not, compose } = R;
 
 const createKey = (store, key) => `${store}_${key}`;
 
-export default function (client) {
+/**
+ * @typedef Options
+ * @property {number} scanCount
+ *
+ * @param {*} client
+ * @param {Options} options
+ * @returns
+ */
+export default function (client, options) {
   // redis commands
   // key: Promise<string>
   const get = Async.fromPromise(client.get.bind(client));
@@ -16,6 +24,8 @@ export default function (client) {
   const del = Async.fromPromise(client.del.bind(client));
   // cursor, { type, pattern }: Promise<[string, string[]]>
   const scan = Async.fromPromise(client.scan.bind(client));
+
+  const { scanCount } = options;
 
   const index = () => {
     return Promise.resolve(HyperErr({ status: 501, msg: "Not Implemented" }));
@@ -185,8 +195,8 @@ export default function (client) {
    */
   const listDocs = async ({ store, pattern = "*" }) => {
     const matcher = createKey(store, pattern);
-    return await scan(0, { pattern: matcher })
-      .chain(getKeys(scan, matcher))
+    return await scan(0, { pattern: matcher, count: scanCount })
+      .chain(getKeys(scan, matcher, scanCount))
       .chain(getValues(get, store))
       .bichain(
         handleHyperErr,
@@ -207,11 +217,11 @@ export default function (client) {
   });
 }
 
-function getKeys(scan, matcher) {
+function getKeys(scan, matcher, count) {
   return function repeat([cursor, keys]) {
     return cursor === "0"
       ? Async.Resolved(keys)
-      : scan(cursor, { pattern: matcher })
+      : scan(cursor, { pattern: matcher, count })
         .chain(repeat)
         .map((v) => keys.concat(v));
   };
