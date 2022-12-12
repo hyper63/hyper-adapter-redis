@@ -21,16 +21,15 @@ export default function (client) {
     return Promise.resolve(HyperErr({ status: 501, msg: "Not Implemented" }));
   };
 
-  const checkIfStoreExists = (store) =>
-    (key) =>
-      get(createKey("store", store))
-        .chain(
-          (_) =>
-            _ ? Async.Resolved(key) : Async.Rejected(HyperErr({
-              status: 400,
-              msg: "Store does not exist",
-            })),
-        );
+  const checkIfStoreExists = (store) => (key) =>
+    get(createKey("store", store))
+      .chain(
+        (_) =>
+          _ ? Async.Resolved(key) : Async.Rejected(HyperErr({
+            status: 400,
+            msg: "Store does not exist",
+          })),
+      );
 
   const checkForConflict = ([id]) =>
     get(id)
