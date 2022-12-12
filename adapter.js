@@ -1,5 +1,5 @@
-import { crocks, R } from "./deps.js";
-import { handleHyperErr, HyperErr } from "./utils.js";
+import { crocks, HyperErr, R } from "./deps.js";
+import { handleHyperErr } from "./utils.js";
 
 const { Async } = crocks;
 const { always, append, identity, ifElse, isNil, map, not, compose } = R;
