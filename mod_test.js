@@ -41,11 +41,36 @@ Deno.test("mod", async (t) => {
       assertEquals(res.client.nodes[0].hostname, "foo");
       assertEquals(res.client.nodes[0].port, 6380);
     });
+
+    await t.step("returns an options object", async (t) => {
+      await t.step("with defaults", async () => {
+        const withDefault = await RedisCacheAdapter({}, {
+          client: { connect: resolves({ foo: "bar" }) },
+        }).load();
+
+        assert(withDefault.options);
+        assertEquals(withDefault.options.scanCount, 1000);
+      });
+
+      await t.step("without defaults", async () => {
+        const withoutDefault = await RedisCacheAdapter({}, {
+          client: { connect: resolves({ foo: "bar" }) },
+          // Pass in scan count through config
+          scanCount: 111,
+        }).load();
+
+        assert(withoutDefault.options);
+        assertEquals(withoutDefault.options.scanCount, 111);
+      });
+    });
   });
 
   await t.step("link", async (t) => {
     await t.step("returns an adapter", () => {
-      const res = RedisCacheAdapter().link({ client: baseStubClient })();
+      const res = RedisCacheAdapter().link({
+        client: baseStubClient,
+        options: { scanCount: 101 },
+      })();
       assert(res.createStore);
     });
   });

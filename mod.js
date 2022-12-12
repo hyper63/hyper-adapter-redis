@@ -12,6 +12,7 @@ const { mergeRight } = R;
  * @typedef RedisAdapterOptions
  * @property {{ connect: () => Promise<{}> }?} client
  * @property {boolean?} cluster - defaults to false
+ * @property {number?} scanCount - The workload size of scan calls. Defaults to 1000
  *
  * @param {RedisClientArgs} config
  * @param {RedisAdapterOptions?} options
@@ -22,6 +23,7 @@ export default function RedisCacheAdapter(
   options = {},
 ) {
   options.client = options.client || (options.cluster ? redisCluster : redis);
+  options.scanCount = options.scanCount || 1000;
 
   async function load(prevLoad = {}) {
     // prefer args passed to adapter over previous load
@@ -43,20 +45,20 @@ export default function RedisCacheAdapter(
       client = await options.client.connect(config);
     }
     // create client
-    return { client };
+    return { client, options: { scanCount: options.scanCount } };
   }
 
   /**
-   * @param {{ client }} env
+   * @param {{ client, options: { scanCount: number } }} env
    * @returns {function}
    */
-  function link({ client }) {
+  function link({ client, options }) {
     /**
      * @param {object} adapter
      * @returns {object}
      */
     return function () {
-      return createAdapter(client);
+      return createAdapter(client, options);
     };
   }
 
