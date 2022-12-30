@@ -28,7 +28,12 @@ export default {
   adapter: [
     {
       port: "cache",
-      plugins: [redis({ url: process.env.REDIS_URL })],
+      plugins: [
+        redis({
+          hostname: Deno.env.get('REDIS_HOST'),
+          port: Deno.env.get('REDIS_PORT') // defaults to 6379
+        })
+      ],
     },
   ],
 };
@@ -65,7 +70,7 @@ See the full port [here](https://nest.land/package/hyper-port-cache)
 ## Contributing
 
 Contributions are welcome! See the hyper
-[contribution guide](https://docs.hyper.io/contributing-to-hyper)
+[contribution guide](https://docs.hyper.io/oss/contributing-to-hyper)
 
 ## Testing
 
