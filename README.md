@@ -21,22 +21,22 @@
 ## Getting Started
 
 ```js
-import { default as redis } from "https://x.nest.land/hyper-adapter-redis@1.2.9/mod.js";
+import { default as redis } from 'https://x.nest.land/hyper-adapter-redis@1.2.9/mod.js'
 
 export default {
   app: opine,
   adapter: [
     {
-      port: "cache",
+      port: 'cache',
       plugins: [
         redis({
           hostname: Deno.env.get('REDIS_HOST'),
-          port: Deno.env.get('REDIS_PORT') // defaults to 6379
-        })
+          port: Deno.env.get('REDIS_PORT'), // defaults to 6379
+        }),
       ],
     },
   ],
-};
+}
 ```
 
 ## Installation
@@ -47,7 +47,7 @@ This is a Deno module available to import from
 deps.js
 
 ```js
-export { default as redis } from "https://x.nest.land/hyper-adapter-redis@1.2.9/mod.js";
+export { default as redis } from 'https://x.nest.land/hyper-adapter-redis@1.2.9/mod.js'
 ```
 
 ## Features
@@ -75,7 +75,7 @@ Contributions are welcome! See the hyper
 ## Testing
 
 ```
-./scripts/test.sh
+deno task test
 ```
 
 To lint, check formatting, and run unit tests

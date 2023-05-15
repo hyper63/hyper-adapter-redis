@@ -1,10 +1,10 @@
-import { crocks, HyperErr, R } from "./deps.js";
-import { handleHyperErr } from "./utils.js";
+import { crocks, HyperErr, R } from './deps.js'
+import { handleHyperErr } from './utils.js'
 
-const { Async } = crocks;
-const { always, append, identity, ifElse, isNil, map, not, compose } = R;
+const { Async } = crocks
+const { always, append, identity, ifElse, isNil, map, not, compose } = R
 
-const createKey = (store, key) => `${store}_${key}`;
+const createKey = (store, key) => `${store}_${key}`
 
 /**
  * @typedef Options
@@ -17,29 +17,29 @@ const createKey = (store, key) => `${store}_${key}`;
 export default function (client, options) {
   // redis commands
   // key: Promise<string>
-  const get = Async.fromPromise(client.get.bind(client));
+  const get = Async.fromPromise(client.get.bind(client))
   // key, value, { px, ex }: Promise<string>
-  const set = Async.fromPromise(client.set.bind(client));
+  const set = Async.fromPromise(client.set.bind(client))
   // key, key, key: Promise<string[]>
-  const del = Async.fromPromise(client.del.bind(client));
+  const del = Async.fromPromise(client.del.bind(client))
   // cursor, { type, pattern }: Promise<[string, string[]]>
-  const scan = Async.fromPromise(client.scan.bind(client));
+  const scan = Async.fromPromise(client.scan.bind(client))
 
-  const { scanCount } = options;
+  const { scanCount } = options
 
   const index = () => {
-    return Promise.resolve(HyperErr({ status: 501, msg: "Not Implemented" }));
-  };
+    return Promise.resolve(HyperErr({ status: 501, msg: 'Not Implemented' }))
+  }
 
   const checkIfStoreExists = (store) => (key) =>
-    get(createKey("store", store))
+    get(createKey('store', store))
       .chain(
         (_) =>
           _ ? Async.Resolved(key) : Async.Rejected(HyperErr({
             status: 400,
-            msg: "Store does not exist",
+            msg: 'Store does not exist',
           })),
-      );
+      )
 
   const checkForConflict = ([id]) =>
     get(id)
@@ -48,10 +48,10 @@ export default function (client, options) {
           _
             ? Async.Rejected(HyperErr({
               status: 409,
-              msg: "Document Conflict",
+              msg: 'Document Conflict',
             }))
             : Async.Resolved([id]),
-      );
+      )
 
   /**
    * TODO: should this return error if store already exists?
@@ -61,14 +61,14 @@ export default function (client, options) {
    */
   const createStore = (name) =>
     Async.of([])
-      .map(append(createKey("store", name)))
-      .map(append("active"))
+      .map(append(createKey('store', name)))
+      .map(append('active'))
       .chain((args) => set(...args))
       .bichain(
         handleHyperErr,
         always(Async.Resolved({ ok: true })),
       )
-      .toPromise();
+      .toPromise()
 
   /**
    * TODO: should this return error if store doesn't exist?
@@ -77,7 +77,7 @@ export default function (client, options) {
    * @returns {Promise<object>}
    */
   const destroyStore = (name) =>
-    Async.of(createKey(name, "*"))
+    Async.of(createKey(name, '*'))
       // grab all keys belonging to this store
       .chain((matcher) =>
         scan(0, { pattern: matcher })
@@ -97,12 +97,12 @@ export default function (client, options) {
         ),
       )
       // Delete the key that tracks the store's existence
-      .chain(() => del(createKey("store", name)))
+      .chain(() => del(createKey('store', name)))
       .bichain(
         handleHyperErr,
         always(Async.Resolved({ ok: true })),
       )
-      .toPromise();
+      .toPromise()
 
   /**
    * @param {CacheDoc}
@@ -129,7 +129,7 @@ export default function (client, options) {
           doc: value,
         })),
       )
-      .toPromise();
+      .toPromise()
 
   /**
    * @param {CacheDoc}
@@ -142,16 +142,16 @@ export default function (client, options) {
         if (!v) {
           return Async.Rejected(HyperErr({
             status: 404,
-            msg: "document not found",
-          }));
+            msg: 'document not found',
+          }))
         }
-        return Async.Resolved(JSON.parse(v));
+        return Async.Resolved(JSON.parse(v))
       })
       .bichain(
         handleHyperErr,
         (v) => Async.Resolved(v),
       )
-      .toPromise();
+      .toPromise()
 
   /**
    * @param {CacheDoc}
@@ -174,7 +174,7 @@ export default function (client, options) {
         handleHyperErr,
         always(Async.Resolved({ ok: true })),
       )
-      .toPromise();
+      .toPromise()
 
   /**
    * @param {CacheDoc}
@@ -187,14 +187,14 @@ export default function (client, options) {
         handleHyperErr,
         always(Async.Resolved({ ok: true })),
       )
-      .toPromise();
+      .toPromise()
 
   /**
    * @param {CacheQuery}
    * @returns {Promise<object>}
    */
-  const listDocs = async ({ store, pattern = "*" }) => {
-    const matcher = createKey(store, pattern);
+  const listDocs = async ({ store, pattern = '*' }) => {
+    const matcher = createKey(store, pattern)
     return await scan(0, { pattern: matcher, count: scanCount })
       .chain(getKeys(scan, matcher, scanCount))
       .chain(getValues(get, store))
@@ -202,8 +202,8 @@ export default function (client, options) {
         handleHyperErr,
         (docs) => Async.Resolved({ ok: true, docs }),
       )
-      .toPromise();
-  };
+      .toPromise()
+  }
 
   return Object.freeze({
     index,
@@ -214,17 +214,15 @@ export default function (client, options) {
     updateDoc,
     deleteDoc,
     listDocs,
-  });
+  })
 }
 
 function getKeys(scan, matcher, count) {
   return function repeat([cursor, keys]) {
-    return cursor === "0"
-      ? Async.Resolved(keys)
-      : scan(cursor, { pattern: matcher, count })
-        .chain(repeat)
-        .map((v) => keys.concat(v));
-  };
+    return cursor === '0' ? Async.Resolved(keys) : scan(cursor, { pattern: matcher, count })
+      .chain(repeat)
+      .map((v) => keys.concat(v))
+  }
 }
 
 function getValues(get, store) {
@@ -232,9 +230,9 @@ function getValues(get, store) {
     return Async.all(
       map((key) =>
         get(key).map((v) => ({
-          key: key.replace(`${store}_`, ""),
+          key: key.replace(`${store}_`, ''),
           value: JSON.parse(v),
         })), keys),
-    );
-  };
+    )
+  }
 }

@@ -1,8 +1,8 @@
-import { R, redis, redisCluster } from "./deps.js";
+import { R, redis, redisCluster } from './deps.js'
 
-import createAdapter from "./adapter.js";
+import createAdapter from './adapter.js'
 
-const { mergeRight } = R;
+const { mergeRight } = R
 
 /**
  * @typedef RedisClientArgs
@@ -22,14 +22,14 @@ export default function RedisCacheAdapter(
   config = {},
   options = {},
 ) {
-  options.client = options.client || (options.cluster ? redisCluster : redis);
-  options.scanCount = options.scanCount || 10000;
+  options.client = options.client || (options.cluster ? redisCluster : redis)
+  options.scanCount = options.scanCount || 10000
 
   async function load(prevLoad = {}) {
     // prefer args passed to adapter over previous load
-    config = mergeRight(prevLoad, config);
+    config = mergeRight(prevLoad, config)
 
-    let client;
+    let client
     if (options.cluster) {
       // redis cluster client
       client = await options.client.connect({
@@ -39,13 +39,13 @@ export default function RedisCacheAdapter(
             port: config.port,
           },
         ],
-      });
+      })
     } else {
       // regular redis client
-      client = await options.client.connect(config);
+      client = await options.client.connect(config)
     }
     // create client
-    return { client, options: { scanCount: options.scanCount } };
+    return { client, options: { scanCount: options.scanCount } }
   }
 
   /**
@@ -58,14 +58,14 @@ export default function RedisCacheAdapter(
      * @returns {object}
      */
     return function () {
-      return createAdapter(client, options);
-    };
+      return createAdapter(client, options)
+    }
   }
 
   return Object.freeze({
-    id: "redis-cache-adapter",
-    port: "cache",
+    id: 'redis-cache-adapter',
+    port: 'cache',
     load,
     link,
-  });
+  })
 }
