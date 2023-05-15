@@ -6,6 +6,22 @@ const { always, append, identity, ifElse, isNil, map, not, compose } = R
 
 const createKey = (store, key) => `${store}_${key}`
 
+const mapTtl = (ttl) =>
+  ifElse(
+    () => not(isNil(ttl)),
+    /**
+     * If ttl is <0, then it should be expired
+     * immediately.
+     *
+     * Setting the ttl to 0 does that.
+     */
+    append({ px: Math.max(ttl, 0) }),
+    /**
+     * No ttl, ergo live forever
+     */
+    identity,
+  )
+
 /**
  * @typedef Options
  * @property {number} scanCount
@@ -114,13 +130,7 @@ export default function (client, options) {
       // don't allow over-writting of existing keys
       .chain(checkForConflict)
       .map(append(JSON.stringify(value)))
-      .map(
-        ifElse(
-          () => not(isNil(ttl)),
-          append({ px: ttl }),
-          identity,
-        ),
-      )
+      .map(mapTtl(ttl))
       .chain((args) => set(...args))
       .bichain(
         handleHyperErr,
@@ -162,13 +172,7 @@ export default function (client, options) {
       .chain(checkIfStoreExists(store))
       .map(append(createKey(store, key)))
       .map(append(JSON.stringify(value)))
-      .map(
-        ifElse(
-          () => not(isNil(ttl)),
-          append({ px: ttl }),
-          identity,
-        ),
-      )
+      .map(mapTtl(ttl))
       .chain((args) => set(...args))
       .bichain(
         handleHyperErr,

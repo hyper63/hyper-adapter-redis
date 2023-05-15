@@ -185,6 +185,38 @@ Deno.test('adapter', async (t) => {
         msg: 'Document Conflict',
       })
     })
+
+    await t.step('create doc - immediately expire with negative ttl', async () => {
+      const adapter = createAdapter({
+        ...baseStubClient,
+        set: (_k, _v, opts) => {
+          assertEquals(opts.px, 0)
+          return Promise.resolve('OK')
+        },
+        get: (k) =>
+          k === 'store_foo'
+            ? Promise.resolve(JSON.stringify({ foo: 'bar' }))
+            : Promise.resolve(undefined), // not found
+      }, baseOptions)
+
+      await adapter.createDoc({
+        store: 'foo',
+        key: 'bar',
+        value: { bam: 'baz' },
+        ttl: -100,
+      })
+
+      const result = await adapter.getDoc({
+        store: 'foo',
+        key: 'bar',
+      })
+
+      assertObjectMatch(result, {
+        ok: false,
+        status: 404,
+        msg: 'document not found',
+      })
+    })
   })
 
   await t.step('getDoc', async (t) => {
@@ -241,9 +273,13 @@ Deno.test('adapter', async (t) => {
       assert(result.ok)
     })
 
-    await t.step('update doc - immediately expire with negative ttl', async () => {
+    await t.step('create doc - immediately expire with negative ttl', async () => {
       const adapter = createAdapter({
         ...baseStubClient,
+        set: (_k, _v, opts) => {
+          assertEquals(opts.px, 0)
+          return Promise.resolve('OK')
+        },
         get: (k) =>
           k === 'store_foo'
             ? Promise.resolve(JSON.stringify({ foo: 'bar' }))
