@@ -1,12 +1,6 @@
-import {
-  assert,
-  assertEquals,
-  assertObjectMatch,
-  spy,
-  validateCacheAdapterSchema,
-} from './dev_deps.js'
+import { assert, assertEquals, assertObjectMatch, cachePort, spy } from './dev_deps.js'
 
-import createAdapter from './adapter.js'
+import factory from './adapter.js'
 
 const resolves = (val) => () => Promise.resolve(val)
 
@@ -19,13 +13,9 @@ const baseStubClient = {
 
 const baseOptions = { scanCount: 100 }
 
-Deno.test('adapter', async (t) => {
-  await t.step('should implement the port', () => {
-    assert(
-      validateCacheAdapterSchema(createAdapter(baseStubClient, baseOptions)),
-    )
-  })
+const createAdapter = (client, options) => cachePort(factory(client, options))
 
+Deno.test('adapter', async (t) => {
   await t.step('listDocs', async (t) => {
     await t.step('should return the results of the scan', async () => {
       let results = []
@@ -98,7 +88,7 @@ Deno.test('adapter', async (t) => {
       const err = await adapter.createDoc({
         store: 'foo',
         key: 'bar',
-        value: { foo: 'bar', ttl: '5m' },
+        value: { foo: 'bar', ttl: String(30000) },
       })
 
       assertObjectMatch(err, {
@@ -164,7 +154,7 @@ Deno.test('adapter', async (t) => {
         store: 'foo',
         key: 'bar',
         value: { bam: 'baz' },
-        ttl: 5000,
+        ttl: String(5000),
       })
 
       assert(result.ok)
@@ -186,7 +176,7 @@ Deno.test('adapter', async (t) => {
           store: 'foo',
           key: 'bar',
           value: { bam: 'baz' },
-          ttl: 5000,
+          ttl: String(5000),
         })
 
         assertObjectMatch(err, {
@@ -216,7 +206,7 @@ Deno.test('adapter', async (t) => {
           store: 'foo',
           key: 'bar',
           value: { bam: 'baz' },
-          ttl: -100,
+          ttl: String(-100),
         })
 
         const result = await adapter.getDoc({
@@ -288,7 +278,7 @@ Deno.test('adapter', async (t) => {
         store: 'foo',
         key: 'bar',
         value: { hello: 'world' },
-        ttl: 123,
+        ttl: String(123),
       })
       console.log(result)
       assert(result.ok)
@@ -313,7 +303,7 @@ Deno.test('adapter', async (t) => {
           store: 'foo',
           key: 'bar',
           value: { bam: 'baz' },
-          ttl: -100,
+          ttl: String(-100),
         })
 
         const result = await adapter.getDoc({

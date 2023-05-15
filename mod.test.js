@@ -1,4 +1,4 @@
-import { assert, assertEquals, validateFactorySchema } from './dev_deps.js'
+import { assert, assertEquals, pluginFactory } from './dev_deps.js'
 
 import RedisCacheAdapter from './mod.js'
 
@@ -14,7 +14,7 @@ const baseStubClient = {
 
 Deno.test('mod', async (t) => {
   await t.step('validate factory schema', () => {
-    assert(validateFactorySchema(RedisCacheAdapter({}, {
+    assert(pluginFactory(RedisCacheAdapter({}, {
       client: { connect: resolves({ foo: 'bar' }) },
     })))
   })
