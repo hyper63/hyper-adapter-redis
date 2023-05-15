@@ -203,7 +203,7 @@ Deno.test('adapter', async (t) => {
         const adapter = createAdapter({
           ...baseStubClient,
           set: (_k, _v, opts) => {
-            assertEquals(opts.px, 0)
+            assertEquals(opts.px, 1)
             return Promise.resolve('OK')
           },
           get: (k) =>
@@ -300,7 +300,7 @@ Deno.test('adapter', async (t) => {
         const adapter = createAdapter({
           ...baseStubClient,
           set: (_k, _v, opts) => {
-            assertEquals(opts.px, 0)
+            assertEquals(opts.px, 1)
             return Promise.resolve('OK')
           },
           get: (k) =>

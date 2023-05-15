@@ -13,9 +13,9 @@ const mapTtl = (ttl) =>
      * If ttl is <0, then it should be expired
      * immediately.
      *
-     * Setting the ttl to 0 does that.
+     * Setting the ttl to 1 effectively does that.
      */
-    append({ px: Math.max(ttl, 0) }),
+    append({ px: Math.max(Number(ttl), 1) }),
     /**
      * No ttl, ergo live forever
      */
