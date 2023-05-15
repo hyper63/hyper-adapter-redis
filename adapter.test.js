@@ -27,7 +27,7 @@ Deno.test('adapter', async (t) => {
   })
 
   await t.step('listDocs', async (t) => {
-    await t.step('test scan', async () => {
+    await t.step('should return the results of the scan', async () => {
       let results = []
       for (let i = 0; i < 100; i++) {
         results.push(`key${i}`)
@@ -61,7 +61,7 @@ Deno.test('adapter', async (t) => {
       assert(results.docs.length === 100)
     })
 
-    await t.step('list redis docs', async () => {
+    await t.step('should return all of the docs', async () => {
       const doc = { bam: 'baz' }
 
       const adapter = createAdapter({
@@ -82,7 +82,7 @@ Deno.test('adapter', async (t) => {
   })
 
   await t.step('createStore', async (t) => {
-    await t.step('create redis store', async () => {
+    await t.step('should create a logical keyspace in redis', async () => {
       const adapter = createAdapter(baseStubClient, baseOptions)
 
       const result = await adapter.createStore('foo')
@@ -110,7 +110,7 @@ Deno.test('adapter', async (t) => {
   })
 
   await t.step('destroyStore', async (t) => {
-    await t.step('remove redis store - no keys', async () => {
+    await t.step('should remove the logical keyspace if no keys exist', async () => {
       const del = spy(() => Promise.resolve(2))
       const adapter = createAdapter({
         ...baseStubClient,
@@ -125,27 +125,35 @@ Deno.test('adapter', async (t) => {
       assert(result.ok)
     })
 
-    await t.step('remove redis store - keys', async () => {
-      const del = spy(() => Promise.resolve(2))
-      const adapter = createAdapter({
-        ...baseStubClient,
-        del,
-        scan: resolves(['0', ['baz', 'bar']]),
-      }, baseOptions)
+    await t.step(
+      'should remove the keys in the logical keyspace, then remove the logical keyspace',
+      async () => {
+        const del = spy(() => Promise.resolve(2))
+        const adapter = createAdapter({
+          ...baseStubClient,
+          del,
+          scan: resolves(['0', ['baz', 'bar']]),
+        }, baseOptions)
 
-      const result = await adapter.destroyStore('foo')
+        const result = await adapter.destroyStore('foo')
 
-      assert(result.ok)
-      assertObjectMatch(del.calls[0], { args: ['baz'] })
-      assertObjectMatch(del.calls[1], { args: ['bar'] })
-      assertObjectMatch(del.calls[2], { args: ['store_foo'] })
-    })
+        assert(result.ok)
+        assertObjectMatch(del.calls[0], { args: ['baz'] })
+        assertObjectMatch(del.calls[1], { args: ['bar'] })
+        assertObjectMatch(del.calls[2], { args: ['store_foo'] })
+      },
+    )
   })
 
   await t.step('createDoc', async (t) => {
-    await t.step('create redis doc', async () => {
+    await t.step('should save the doc in redis as serialized JSON', async () => {
       const adapter = createAdapter({
         ...baseStubClient,
+        set: (_k, v, opts) => {
+          assertEquals(v, JSON.stringify({ bam: 'baz' }))
+          assertObjectMatch(opts, { px: 5000 })
+          return Promise.resolve('OK')
+        },
         get: (k) =>
           k === 'store_foo'
             ? Promise.resolve(JSON.stringify({ active: true }))
@@ -163,67 +171,74 @@ Deno.test('adapter', async (t) => {
       assertEquals(result.doc, { bam: 'baz' })
     })
 
-    await t.step('create redis doc - conflict', async () => {
-      const adapter = createAdapter({
-        ...baseStubClient,
-        get: (k) =>
-          k === 'store_foo'
-            ? Promise.resolve(JSON.stringify({ active: true })) // store
-            : Promise.resolve(JSON.stringify({ foo: 'bar' })), // doc already exists
-      }, baseOptions)
+    await t.step(
+      'should return a HyperErr with status 409, if the key already exists',
+      async () => {
+        const adapter = createAdapter({
+          ...baseStubClient,
+          get: (k) =>
+            k === 'store_foo'
+              ? Promise.resolve(JSON.stringify({ active: true })) // store
+              : Promise.resolve(JSON.stringify({ foo: 'bar' })), // doc already exists
+        }, baseOptions)
 
-      const err = await adapter.createDoc({
-        store: 'foo',
-        key: 'bar',
-        value: { bam: 'baz' },
-        ttl: 5000,
-      })
+        const err = await adapter.createDoc({
+          store: 'foo',
+          key: 'bar',
+          value: { bam: 'baz' },
+          ttl: 5000,
+        })
 
-      assertObjectMatch(err, {
-        ok: false,
-        status: 409,
-        msg: 'Document Conflict',
-      })
-    })
+        assertObjectMatch(err, {
+          ok: false,
+          status: 409,
+          msg: 'Document Conflict',
+        })
+      },
+    )
 
-    await t.step('create doc - immediately expire with negative ttl', async () => {
-      const adapter = createAdapter({
-        ...baseStubClient,
-        set: (_k, _v, opts) => {
-          assertEquals(opts.px, 0)
-          return Promise.resolve('OK')
-        },
-        get: (k) =>
-          k === 'store_foo'
-            ? Promise.resolve(JSON.stringify({ foo: 'bar' }))
-            : Promise.resolve(undefined), // not found
-      }, baseOptions)
+    await t.step(
+      'should immediately expire by setting a 0 px when provided ttl is negative',
+      async () => {
+        const adapter = createAdapter({
+          ...baseStubClient,
+          set: (_k, _v, opts) => {
+            assertEquals(opts.px, 0)
+            return Promise.resolve('OK')
+          },
+          get: (k) =>
+            k === 'store_foo'
+              ? Promise.resolve(JSON.stringify({ foo: 'bar' }))
+              : Promise.resolve(undefined), // not found
+        }, baseOptions)
 
-      await adapter.createDoc({
-        store: 'foo',
-        key: 'bar',
-        value: { bam: 'baz' },
-        ttl: -100,
-      })
+        await adapter.createDoc({
+          store: 'foo',
+          key: 'bar',
+          value: { bam: 'baz' },
+          ttl: -100,
+        })
 
-      const result = await adapter.getDoc({
-        store: 'foo',
-        key: 'bar',
-      })
+        const result = await adapter.getDoc({
+          store: 'foo',
+          key: 'bar',
+        })
 
-      assertObjectMatch(result, {
-        ok: false,
-        status: 404,
-        msg: 'document not found',
-      })
-    })
+        assertObjectMatch(result, {
+          ok: false,
+          status: 404,
+          msg: 'document not found',
+        })
+      },
+    )
   })
 
   await t.step('getDoc', async (t) => {
-    await t.step('get redis doc', async () => {
+    await t.step('should retrieve and parse the doc as JSON', async () => {
       const value = { bam: 'baz' }
       const adapter = createAdapter({
         ...baseStubClient,
+        // serialized JSON
         get: resolves(JSON.stringify(value)),
       }, baseOptions)
 
@@ -235,7 +250,7 @@ Deno.test('adapter', async (t) => {
       assertObjectMatch(result, value)
     })
 
-    await t.step('get redis doc - not found', async () => {
+    await t.step('should return a HyperErr with status of 404 if key is not found', async () => {
       const adapter = createAdapter({
         ...baseStubClient,
         get: (k) =>
@@ -258,9 +273,14 @@ Deno.test('adapter', async (t) => {
   })
 
   await t.step('updateDoc', async (t) => {
-    await t.step('update redis doc', async () => {
+    await t.step('should upsert the doc into Redis as serialized JSON', async () => {
       const adapter = createAdapter({
         ...baseStubClient,
+        set: (_k, v, opts) => {
+          assertEquals(v, JSON.stringify({ hello: 'world' }))
+          assertObjectMatch(opts, { px: 123 })
+          return Promise.resolve('OK')
+        },
         get: (k) => k === 'store_foo' ? Promise.resolve('{"active": true}') : Promise.resolve(null),
       }, baseOptions)
 
@@ -268,46 +288,50 @@ Deno.test('adapter', async (t) => {
         store: 'foo',
         key: 'bar',
         value: { hello: 'world' },
+        ttl: 123,
       })
       console.log(result)
       assert(result.ok)
     })
 
-    await t.step('create doc - immediately expire with negative ttl', async () => {
-      const adapter = createAdapter({
-        ...baseStubClient,
-        set: (_k, _v, opts) => {
-          assertEquals(opts.px, 0)
-          return Promise.resolve('OK')
-        },
-        get: (k) =>
-          k === 'store_foo'
-            ? Promise.resolve(JSON.stringify({ foo: 'bar' }))
-            : Promise.resolve(undefined), // not found
-      }, baseOptions)
+    await t.step(
+      'should immediately expire by setting a 0 px when provided ttl is negative',
+      async () => {
+        const adapter = createAdapter({
+          ...baseStubClient,
+          set: (_k, _v, opts) => {
+            assertEquals(opts.px, 0)
+            return Promise.resolve('OK')
+          },
+          get: (k) =>
+            k === 'store_foo'
+              ? Promise.resolve(JSON.stringify({ foo: 'bar' }))
+              : Promise.resolve(undefined), // not found
+        }, baseOptions)
 
-      await adapter.updateDoc({
-        store: 'foo',
-        key: 'bar',
-        value: { bam: 'baz' },
-        ttl: -100,
-      })
+        await adapter.updateDoc({
+          store: 'foo',
+          key: 'bar',
+          value: { bam: 'baz' },
+          ttl: -100,
+        })
 
-      const result = await adapter.getDoc({
-        store: 'foo',
-        key: 'bar',
-      })
+        const result = await adapter.getDoc({
+          store: 'foo',
+          key: 'bar',
+        })
 
-      assertObjectMatch(result, {
-        ok: false,
-        status: 404,
-        msg: 'document not found',
-      })
-    })
+        assertObjectMatch(result, {
+          ok: false,
+          status: 404,
+          msg: 'document not found',
+        })
+      },
+    )
   })
 
   await t.step('deleteDoc', async (t) => {
-    await t.step('delete redis doc', async () => {
+    await t.step('should remove the key from redis', async () => {
       const adapter = createAdapter({
         ...baseStubClient,
         get: (k) => k === 'store_foo' ? Promise.resolve('{"active": true}') : Promise.resolve(null),
