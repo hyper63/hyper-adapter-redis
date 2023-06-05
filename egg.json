@@ -5,7 +5,7 @@
   "description": "Hyper Cache port adapter for redis",
   "homepage": "https://github.com/hyper63/hyper-adapter-redis",
   "repo": "https://github.com/hyper63/hyper-adapter-redis",
-  "version": "2.2.2",
+  "version": "2.2.3",
   "unstable": false,
   "unlisted": false,
   "files": [
