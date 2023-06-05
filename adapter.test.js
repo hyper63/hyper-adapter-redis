@@ -41,11 +41,11 @@ Deno.test('adapter', async (t) => {
       })
 
       assertObjectMatch(scan.calls[0].args, [0, {
-        pattern: 'word_*',
+        pattern: '{word}_*',
         count: 100,
       }])
       assertObjectMatch(scan.calls[1].args, ['50', {
-        pattern: 'word_*',
+        pattern: '{word}_*',
         count: 100,
       }])
       assert(results.docs.length === 100)
@@ -122,14 +122,14 @@ Deno.test('adapter', async (t) => {
         const adapter = createAdapter({
           ...baseStubClient,
           del,
-          scan: resolves(['0', ['baz', 'bar']]),
+          scan: resolves(['0', ['{foo}_baz', '{foo}_bar']]),
         }, baseOptions)
 
         const result = await adapter.destroyStore('foo')
 
         assert(result.ok)
-        assertObjectMatch(del.calls[0], { args: ['baz'] })
-        assertObjectMatch(del.calls[1], { args: ['bar'] })
+        assertObjectMatch(del.calls[0], { args: ['{foo}_baz'] })
+        assertObjectMatch(del.calls[1], { args: ['{foo}_bar'] })
         assertObjectMatch(del.calls[2], { args: ['store_foo'] })
       },
     )
@@ -139,7 +139,8 @@ Deno.test('adapter', async (t) => {
     await t.step('should save the doc in redis as serialized JSON', async () => {
       const adapter = createAdapter({
         ...baseStubClient,
-        set: (_k, v, opts) => {
+        set: (k, v, opts) => {
+          assertEquals(k, '{foo}_bar')
           assertEquals(v, JSON.stringify({ bam: 'baz' }))
           assertObjectMatch(opts, { px: 5000 })
           return Promise.resolve('OK')
@@ -229,7 +230,11 @@ Deno.test('adapter', async (t) => {
       const adapter = createAdapter({
         ...baseStubClient,
         // serialized JSON
-        get: resolves(JSON.stringify(value)),
+        get: (k) => {
+          return k === 'store_foo'
+            ? Promise.resolve(JSON.stringify({ active: true })) // store
+            : (assertEquals(k, '{foo}_bar'), Promise.resolve(JSON.stringify(value)))
+        },
       }, baseOptions)
 
       const result = await adapter.getDoc({
@@ -266,12 +271,16 @@ Deno.test('adapter', async (t) => {
     await t.step('should upsert the doc into Redis as serialized JSON', async () => {
       const adapter = createAdapter({
         ...baseStubClient,
-        set: (_k, v, opts) => {
+        set: (k, v, opts) => {
+          assertEquals(k, '{foo}_bar')
           assertEquals(v, JSON.stringify({ hello: 'world' }))
           assertObjectMatch(opts, { px: 123 })
           return Promise.resolve('OK')
         },
-        get: (k) => k === 'store_foo' ? Promise.resolve('{"active": true}') : Promise.resolve(null),
+        get: (k) =>
+          k === 'store_foo'
+            ? Promise.resolve(JSON.stringify({ active: true }))
+            : Promise.resolve(undefined),
       }, baseOptions)
 
       const result = await adapter.updateDoc({

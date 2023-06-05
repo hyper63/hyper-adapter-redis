@@ -4,7 +4,23 @@ import { handleHyperErr } from './utils.js'
 const { Async } = crocks
 const { always, append, identity, ifElse, isNil, map, not, compose } = R
 
-const createKey = (store, key) => `${store}_${key}`
+/**
+ * Create a hyper store cache key, with the given prefix.
+ * By default, the prefix is hashtagged to ensure all keys "contained" in the prefix
+ * are stored within the same hash slot. This is useful when performing multi-key operations
+ * on a Redis cluster. See https://github.com/hyper63/hyper-adapter-redis/issues/17
+ *
+ * See: https://redis.io/docs/reference/cluster-spec/#hash-tags
+ *
+ * @param {string} prefix - the prefix for the key, typically the hyper cache store name
+ * @param {string} key - the key
+ * @param {boolean} [noHashSlot] - whether to hashtag the prefix, which will cause all keys
+ * "within" this prefix to be mapped to the same hash slot. This is useful for multi-key operations
+ * performed on a Redis cluster. Defaults to false, which is to say "hashtag the prefix"
+ * @returns
+ */
+const createKey = (prefix, key, noHashSlot = false) =>
+  `${noHashSlot ? `${prefix}` : `{${prefix}}`}_${key}`
 
 const mapTtl = (ttl) =>
   ifElse(
@@ -48,7 +64,7 @@ export default function (client, options) {
   }
 
   const checkIfStoreExists = (store) => (key) =>
-    get(createKey('store', store))
+    get(createKey('store', store, true))
       .chain(
         (_) =>
           _ ? Async.Resolved(key) : Async.Rejected(HyperErr({
@@ -77,7 +93,7 @@ export default function (client, options) {
    */
   const createStore = (name) =>
     Async.of([])
-      .map(append(createKey('store', name)))
+      .map(append(createKey('store', name, true)))
       .map(append('active'))
       .chain((args) => set(...args))
       .bichain(
@@ -113,7 +129,7 @@ export default function (client, options) {
         ),
       )
       // Delete the key that tracks the store's existence
-      .chain(() => del(createKey('store', name)))
+      .chain(() => del(createKey('store', name, true)))
       .bichain(
         handleHyperErr,
         always(Async.Resolved({ ok: true })),
@@ -146,8 +162,9 @@ export default function (client, options) {
    * @returns {Promise<object>}
    */
   const getDoc = ({ store, key }) =>
-    checkIfStoreExists(store)()
-      .chain(() => get(createKey(store, key)))
+    Async.of(createKey(store, key))
+      .chain(checkIfStoreExists(store))
+      .chain(get)
       .chain((v) => {
         if (!v) {
           return Async.Rejected(HyperErr({
