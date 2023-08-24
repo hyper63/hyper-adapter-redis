@@ -57,9 +57,6 @@ The adapter will automatically discover all nodes in the Cluster.
 
 ## Installation
 
-This is a Deno module available to import from
-[nest.land](https://nest.land/package/hyper-adapter-redis)
-
 deps.js
 
 ```js
