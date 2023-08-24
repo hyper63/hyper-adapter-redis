@@ -41,23 +41,20 @@ const mapTtl = (ttl) =>
 /**
  * @typedef Options
  * @property {number} scanCount
+ * @property {any} client
  *
- * @param {*} client
  * @param {Options} options
- * @returns
  */
-export default function (client, options) {
+export default function ({ redis, scanCount }) {
   // redis commands
   // key: Promise<string>
-  const get = Async.fromPromise(client.get.bind(client))
+  const get = Async.fromPromise(redis.get.bind(redis))
   // key, value, { px, ex }: Promise<string>
-  const set = Async.fromPromise(client.set.bind(client))
+  const set = Async.fromPromise(redis.set.bind(redis))
   // key, key, key: Promise<string[]>
-  const del = Async.fromPromise(client.del.bind(client))
+  const del = Async.fromPromise(redis.del.bind(redis))
   // cursor, { type, pattern }: Promise<[string, string[]]>
-  const scan = Async.fromPromise(client.scan.bind(client))
-
-  const { scanCount } = options
+  const scan = Async.fromPromise(redis.scan.bind(redis))
 
   const index = () => {
     return Promise.resolve(HyperErr({ status: 501, msg: 'Not Implemented' }))
