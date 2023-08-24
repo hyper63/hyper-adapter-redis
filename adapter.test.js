@@ -11,9 +11,7 @@ const baseStubClient = {
   scan: resolves(),
 }
 
-const baseOptions = { scanCount: 100 }
-
-const createAdapter = (client, options) => cachePort(factory(client, options))
+const createAdapter = (redis) => cachePort(factory({ redis, scanCount: 100 }))
 
 Deno.test('adapter', async (t) => {
   await t.step('listDocs', async (t) => {
@@ -33,7 +31,7 @@ Deno.test('adapter', async (t) => {
         ...baseStubClient,
         get: resolves(JSON.stringify({ bam: 'baz' })),
         scan,
-      }, baseOptions)
+      })
 
       results = await adapter.listDocs({
         store: 'word',
@@ -58,7 +56,7 @@ Deno.test('adapter', async (t) => {
         ...baseStubClient,
         get: resolves(JSON.stringify(doc)),
         scan: resolves(['0', ['key']]),
-      }, baseOptions)
+      })
 
       const result = await adapter.listDocs({
         store: 'foo',
@@ -73,7 +71,7 @@ Deno.test('adapter', async (t) => {
 
   await t.step('createStore', async (t) => {
     await t.step('should create a logical keyspace in redis', async () => {
-      const adapter = createAdapter(baseStubClient, baseOptions)
+      const adapter = createAdapter(baseStubClient)
 
       const result = await adapter.createStore('foo')
       assert(result.ok)
@@ -83,7 +81,7 @@ Deno.test('adapter', async (t) => {
       const adapter = createAdapter({
         ...baseStubClient,
         get: resolves(undefined), // looking up store produces undefined
-      }, baseOptions)
+      })
 
       const err = await adapter.createDoc({
         store: 'foo',
@@ -106,7 +104,7 @@ Deno.test('adapter', async (t) => {
         ...baseStubClient,
         del,
         scan: resolves(['0', []]),
-      }, baseOptions)
+      })
 
       const result = await adapter.destroyStore('foo')
 
@@ -123,7 +121,7 @@ Deno.test('adapter', async (t) => {
           ...baseStubClient,
           del,
           scan: resolves(['0', ['{foo}_baz', '{foo}_bar']]),
-        }, baseOptions)
+        })
 
         const result = await adapter.destroyStore('foo')
 
@@ -149,7 +147,7 @@ Deno.test('adapter', async (t) => {
           k === 'store_foo'
             ? Promise.resolve(JSON.stringify({ active: true }))
             : Promise.resolve(null),
-      }, baseOptions)
+      })
 
       const result = await adapter.createDoc({
         store: 'foo',
@@ -171,7 +169,7 @@ Deno.test('adapter', async (t) => {
             k === 'store_foo'
               ? Promise.resolve(JSON.stringify({ active: true })) // store
               : Promise.resolve(JSON.stringify({ foo: 'bar' })), // doc already exists
-        }, baseOptions)
+        })
 
         const err = await adapter.createDoc({
           store: 'foo',
@@ -201,7 +199,7 @@ Deno.test('adapter', async (t) => {
             k === 'store_foo'
               ? Promise.resolve(JSON.stringify({ foo: 'bar' }))
               : Promise.resolve(undefined), // not found
-        }, baseOptions)
+        })
 
         await adapter.createDoc({
           store: 'foo',
@@ -235,7 +233,7 @@ Deno.test('adapter', async (t) => {
             ? Promise.resolve(JSON.stringify({ active: true })) // store
             : (assertEquals(k, '{foo}_bar'), Promise.resolve(JSON.stringify(value)))
         },
-      }, baseOptions)
+      })
 
       const result = await adapter.getDoc({
         store: 'foo',
@@ -252,7 +250,7 @@ Deno.test('adapter', async (t) => {
           k === 'store_foo'
             ? Promise.resolve(JSON.stringify({ foo: 'bar' }))
             : Promise.resolve(undefined),
-      }, baseOptions)
+      })
 
       const err = await adapter.getDoc({
         store: 'foo',
@@ -281,7 +279,7 @@ Deno.test('adapter', async (t) => {
           k === 'store_foo'
             ? Promise.resolve(JSON.stringify({ active: true }))
             : Promise.resolve(undefined),
-      }, baseOptions)
+      })
 
       const result = await adapter.updateDoc({
         store: 'foo',
@@ -289,7 +287,6 @@ Deno.test('adapter', async (t) => {
         value: { hello: 'world' },
         ttl: String(123),
       })
-      console.log(result)
       assert(result.ok)
     })
 
@@ -306,7 +303,7 @@ Deno.test('adapter', async (t) => {
             k === 'store_foo'
               ? Promise.resolve(JSON.stringify({ foo: 'bar' }))
               : Promise.resolve(undefined), // not found
-        }, baseOptions)
+        })
 
         await adapter.updateDoc({
           store: 'foo',
@@ -334,7 +331,7 @@ Deno.test('adapter', async (t) => {
       const adapter = createAdapter({
         ...baseStubClient,
         get: (k) => k === 'store_foo' ? Promise.resolve('{"active": true}') : Promise.resolve(null),
-      }, baseOptions)
+      })
 
       const result = await adapter.deleteDoc({
         store: 'foo',

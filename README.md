@@ -2,26 +2,28 @@
 <p align="center">A Cache port adapter for Redis in the <a href="https://hyper.io/">hyper</a>  service framework</p>
 </p>
 <p align="center">
-  <a href="https://nest.land/package/hyper-adapter-redis"><img src="https://nest.land/badge.svg" alt="Nest Badge" /></a>
   <a href="https://github.com/hyper63/hyper-adapter-redis/actions/workflows/test-and-publish.yml"><img src="https://github.com/hyper63/hyper-adapter-redis/actions/workflows/test-and-publish.yml/badge.svg" alt="Test" /></a>
   <a href="https://github.com/hyper63/hyper-adapter-redis/tags/"><img src="https://img.shields.io/github/tag/hyper63/hyper-adapter-redis" alt="Current Version" /></a>
 </p>
 
 ---
 
-## Table of Contents
+<!-- toc -->
 
 - [Getting Started](#getting-started)
 - [Installation](#installation)
 - [Features](#features)
 - [Methods](#methods)
 - [Contributing](#contributing)
+- [Testing](#testing)
 - [License](#license)
+
+<!-- tocstop -->
 
 ## Getting Started
 
 ```js
-import { default as redis } from 'https://x.nest.land/hyper-adapter-redis@1.2.9/mod.js'
+import { default as redis } from 'https://raw.githubusercontent.com/hyper63/hyper-adapter-redis/v3.1.0/mod.js'
 
 export default {
   app: opine,
@@ -29,15 +31,29 @@ export default {
     {
       port: 'cache',
       plugins: [
-        redis({
-          hostname: Deno.env.get('REDIS_HOST'),
-          port: Deno.env.get('REDIS_PORT'), // defaults to 6379
-        }),
+        redis({ url: 'http://user@password@redis.host:6379' }),
       ],
     },
   ],
 }
 ```
+
+You can also pass a separate `hostname` and `port` to the adapter:
+
+```js
+redis({ hostname: 'redis.host', port: 6380 }),
+```
+
+> `port` will always default to `6379` if not provided, then `443` if the `url` protocol is `https`
+> then finally `80`
+
+To connect to a Redis Cluster, pass the `cluster` flag:
+
+```js
+redis({ url: 'http://user@password@redis.host:6379', cluster: true })
+```
+
+The adapter will automatically discover all nodes in the Cluster.
 
 ## Installation
 
@@ -47,7 +63,7 @@ This is a Deno module available to import from
 deps.js
 
 ```js
-export { default as redis } from 'https://x.nest.land/hyper-adapter-redis@1.2.9/mod.js'
+export { default as redis } from 'https://raw.githubusercontent.com/hyper63/hyper-adapter-redis/v3.1.0/mod.js'
 ```
 
 ## Features

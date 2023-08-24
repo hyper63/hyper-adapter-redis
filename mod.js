@@ -1,71 +1,78 @@
-import { R, redis, redisCluster } from './deps.js'
+import { crocks, R, redis, redisCluster } from './deps.js'
 
 import createAdapter from './adapter.js'
 
-const { mergeRight } = R
+const { Async } = crocks
+const { Rejected, Resolved, of } = Async
+const { defaultTo, mergeRight, isEmpty } = R
 
 /**
  * @typedef RedisClientArgs
- * @property {string} hostname
+ * @property {string?} hostname
  * @property {number?} port - defaults to 6379
- *
- * @typedef RedisAdapterOptions
+ * @property {string?} url - a connection string that is parsed to determine Redis configuration
  * @property {{ connect: () => Promise<{}> }?} client
  * @property {boolean?} cluster - defaults to false
  * @property {number?} scanCount - The workload size of scan calls. Defaults to 1000
  *
  * @param {RedisClientArgs} config
- * @param {RedisAdapterOptions?} options
- * @returns {object}
  */
-export default function RedisCacheAdapter(
-  config = {},
-  options = {},
-) {
-  options.client = options.client || (options.cluster ? redisCluster : redis)
-  options.scanCount = options.scanCount || 10000
+export default function RedisCacheAdapter(config) {
+  const checkClientArgs = (config) => {
+    if (config.url) return Resolved(config)
+    if (config.hostname) return Resolved(config)
+    return Rejected({
+      message: 'either a url or hostname must be provided in order to connect to Redis',
+    })
+  }
 
-  async function load(prevLoad = {}) {
-    // prefer args passed to adapter over previous load
-    config = mergeRight(prevLoad, config)
+  const setPort = (config) => mergeRight({ port: 6379 }, config)
+
+  const setScanCount = (config) => mergeRight({ scanCount: 10000 }, config)
+
+  const setClient = Async.fromPromise(async (config) => {
+    const { hostname: _hostname, port: _port, url, cluster, client: _client } = config
+    const Client = _client || (cluster ? redisCluster : redis)
+
+    const configFromUrl = url ? new URL(url) : {}
+
+    console.log({ configFromUrl })
+
+    const hostname = configFromUrl.hostname || _hostname
+    const port = !isEmpty(configFromUrl)
+      ? Number(configFromUrl.port) || (configFromUrl.protocol === 'https:' ? 443 : 80)
+      : _port
+    const password = configFromUrl.password || undefined
+
+    console.log({ hostname, port, password })
 
     let client
-    if (options.cluster) {
+    if (cluster) {
       // redis cluster client
-      client = await options.client.connect({
-        nodes: [
-          {
-            hostname: config.hostname,
-            port: config.port,
-          },
-        ],
+      client = await Client.connect({
+        nodes: [{ hostname, port }],
       })
     } else {
       // regular redis client
-      client = await options.client.connect(config)
+      client = await Client.connect({ hostname, port, password })
     }
-    // create client
-    return { client, options: { scanCount: options.scanCount } }
-  }
 
-  /**
-   * @param {{ client, options: { scanCount: number } }} env
-   * @returns {function}
-   */
-  function link({ client, options }) {
-    /**
-     * @param {object} adapter
-     * @returns {object}
-     */
-    return function () {
-      return createAdapter(client, options)
-    }
-  }
+    return mergeRight(config, { redis: client })
+  })
 
   return Object.freeze({
     id: 'redis-cache-adapter',
     port: 'cache',
-    load,
-    link,
+    load: (prevLoad) =>
+      of(prevLoad)
+        .map(defaultTo({}))
+        .map((prevLoad) => mergeRight(prevLoad, config || {}))
+        .chain(checkClientArgs)
+        .map(setScanCount)
+        .map(setPort)
+        .chain(setClient)
+        .toPromise()
+        .catch((e) => console.log('Error: In Load Method', e.message)),
+    link: ({ redis, scanCount }) => (_) => createAdapter({ redis, scanCount }),
   })
 }

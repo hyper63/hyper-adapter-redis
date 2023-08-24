@@ -1,8 +1,8 @@
 export * as R from 'https://cdn.skypack.dev/ramda@0.29.0'
 export { default as crocks } from 'https://cdn.skypack.dev/crocks@0.12.4'
 
-export * as redis from 'https://deno.land/x/redis@v0.29.4/mod.ts'
-export * as redisCluster from 'https://deno.land/x/redis@v0.29.4/experimental/cluster/mod.ts'
+export * as redis from 'https://deno.land/x/redis@v0.30.0/mod.ts'
+export * as redisCluster from 'https://deno.land/x/redis@v0.30.0/experimental/cluster/mod.ts'
 
 export {
   HyperErr,
