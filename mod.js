@@ -42,8 +42,6 @@ export default function RedisCacheAdapter(config) {
       : _port
     const password = configFromUrl.password || undefined
 
-    console.log({ hostname, port, password })
-
     let client
     if (cluster) {
       // redis cluster client
