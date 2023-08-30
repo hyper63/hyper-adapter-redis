@@ -36,8 +36,6 @@ export default function RedisCacheAdapter(config) {
 
     const configFromUrl = url ? new URL(url) : {}
 
-    console.log({ configFromUrl })
-
     const hostname = configFromUrl.hostname || _hostname
     const port = !isEmpty(configFromUrl)
       ? Number(configFromUrl.port) || (configFromUrl.protocol === 'https:' ? 443 : 80)
