@@ -3,7 +3,9 @@ image:
 
 tasks:
   - name: 🏎 Start Redis Server
-    command: redis-server
+    init: docker build -t hyper-redis .redis
+    command: |
+      docker run -it -p 6379:6379 hyper-redis
 
   - name: 🪝 Setup hooks and run tests
     init: deno task prepare
