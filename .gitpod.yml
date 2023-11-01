@@ -6,7 +6,7 @@ tasks:
     command: redis-server
 
   - name: 🪝 Setup hooks and run tests
-    init: git config core.hooksPath .hooks
+    init: deno task prepare
     command: deno task test
 
 ports:
