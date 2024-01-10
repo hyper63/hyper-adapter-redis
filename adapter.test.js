@@ -1,3 +1,4 @@
+import { R } from './deps.js'
 import { assert, assertEquals, assertObjectMatch, cachePort, spy } from './dev_deps.js'
 
 import factory from './adapter.js'
@@ -9,63 +10,124 @@ const baseStubClient = {
   set: resolves(),
   del: resolves(),
   scan: resolves(),
+  mget: resolves(),
 }
 
-const createAdapter = (redis) => cachePort(factory({ redis, scanCount: 100 }))
+const scanCount = 2
+const createAdapter = (redis) => cachePort(factory({ redis, scanCount, hashSlot: true }))
 
 Deno.test('adapter', async (t) => {
   await t.step('listDocs', async (t) => {
-    await t.step('should return the results of the scan', async () => {
-      let results = []
-      for (let i = 0; i < 100; i++) {
-        results.push(`key${i}`)
-      }
+    const stubScan = (count) => {
+      const results = []
+      for (let i = 0; i < count; i++) results.push(`key${i}`)
 
-      const scans = [
-        ['50', results.slice(0, 50)],
-        ['0', results.slice(50)],
-      ]
+      const scans = R.splitEvery(2, results.reverse())
+        .map((v, index) => [`${index * v.length}`, v])
+        .reverse()
       const scan = spy(() => Promise.resolve(scans.shift()))
 
-      const adapter = createAdapter({
-        ...baseStubClient,
-        get: resolves(JSON.stringify({ bam: 'baz' })),
-        scan,
+      return scan
+    }
+
+    await t.step('with no hashSlot', async (t) => {
+      const createAdapter = (redis) => cachePort(factory({ redis, scanCount, hashSlot: false }))
+
+      await t.step('should return the results of the scan', async () => {
+        const count = 100
+        const scan = stubScan(count)
+
+        const adapter = createAdapter({
+          ...baseStubClient,
+          get: resolves(JSON.stringify({ bam: 'baz' })),
+          scan,
+        })
+
+        const res = await adapter.listDocs({
+          store: 'word',
+          pattern: '*',
+        })
+
+        assertEquals(scan.calls.length, count / scanCount)
+        assertObjectMatch(scan.calls[0].args, [0, {
+          pattern: 'word_*',
+          count: scanCount,
+        }])
+        assertObjectMatch(scan.calls[1].args, [`${count - scanCount}`, {
+          pattern: 'word_*',
+          count: scanCount,
+        }])
+        assert(res.docs.length === count)
       })
 
-      results = await adapter.listDocs({
-        store: 'word',
-        pattern: '*',
-      })
+      await t.step('should return all of the docs', async () => {
+        const doc = { bam: 'baz' }
 
-      assertObjectMatch(scan.calls[0].args, [0, {
-        pattern: '{word}_*',
-        count: 100,
-      }])
-      assertObjectMatch(scan.calls[1].args, ['50', {
-        pattern: '{word}_*',
-        count: 100,
-      }])
-      assert(results.docs.length === 100)
+        const adapter = createAdapter({
+          ...baseStubClient,
+          get: resolves(JSON.stringify(doc)),
+          scan: resolves(['0', ['key']]),
+        })
+
+        const result = await adapter.listDocs({
+          store: 'foo',
+          pattern: '*',
+        })
+
+        assert(result.ok)
+        assertEquals(result.docs.length, 1)
+        assertObjectMatch(result.docs[0].value, doc)
+      })
     })
 
-    await t.step('should return all of the docs', async () => {
-      const doc = { bam: 'baz' }
+    await t.step('with hasSlot', async (t) => {
+      const createAdapter = (redis) => cachePort(factory({ redis, scanCount, hashSlot: true }))
 
-      const adapter = createAdapter({
-        ...baseStubClient,
-        get: resolves(JSON.stringify(doc)),
-        scan: resolves(['0', ['key']]),
+      await t.step('should return the results of the scan', async () => {
+        const count = 100
+        const scan = stubScan(100)
+
+        const adapter = createAdapter({
+          ...baseStubClient,
+          mget: resolves([JSON.stringify({ bam: 'baz' }), JSON.stringify({ bam: 'baz' })]),
+          scan,
+        })
+
+        const res = await adapter.listDocs({
+          store: 'word',
+          pattern: '*',
+        })
+
+        assertEquals(scan.calls.length, count / scanCount)
+        assertObjectMatch(scan.calls[0].args, [0, {
+          pattern: '{word}_*',
+          count: scanCount,
+        }])
+        assertObjectMatch(scan.calls[1].args, [`${count - scanCount}`, {
+          pattern: '{word}_*',
+          count: scanCount,
+        }])
+        assert(res.docs.length === count)
       })
 
-      const result = await adapter.listDocs({
-        store: 'foo',
-        pattern: '*',
-      })
+      await t.step('should return all of the docs', async () => {
+        const doc = { bam: 'baz' }
 
-      assert(result.ok)
-      assertEquals(result.docs.length, 1)
-      assertObjectMatch(result.docs[0].value, doc)
+        const adapter = createAdapter({
+          ...baseStubClient,
+          mget: resolves([JSON.stringify(doc)]),
+          scan: resolves(['0', ['key']]),
+        })
+
+        const result = await adapter.listDocs({
+          store: 'foo',
+          pattern: '*',
+        })
+
+        assert(result.ok)
+        assertEquals(result.docs.length, 1)
+        assertObjectMatch(result.docs[0].value, doc)
+      })
     })
   })
 
@@ -113,24 +175,50 @@ Deno.test('adapter', async (t) => {
       assert(result.ok)
     })
 
-    await t.step(
-      'should remove the keys in the logical keyspace, then remove the logical keyspace',
-      async () => {
-        const del = spy(() => Promise.resolve(2))
-        const adapter = createAdapter({
-          ...baseStubClient,
-          del,
-          scan: resolves(['0', ['{foo}_baz', '{foo}_bar']]),
-        })
+    await t.step('with no hashSlot', async (t) => {
+      const createAdapter = (redis) => cachePort(factory({ redis, scanCount, hashSlot: false }))
 
-        const result = await adapter.destroyStore('foo')
+      await t.step(
+        'should remove the keys in the logical keyspace, then remove the logical keyspace',
+        async () => {
+          const del = spy(() => Promise.resolve(2))
+          const adapter = createAdapter({
+            ...baseStubClient,
+            del,
+            scan: resolves(['0', ['foo_baz', 'foo_bar']]),
+          })
 
-        assert(result.ok)
-        assertObjectMatch(del.calls[0], { args: ['{foo}_baz'] })
-        assertObjectMatch(del.calls[1], { args: ['{foo}_bar'] })
-        assertObjectMatch(del.calls[2], { args: ['store_foo'] })
-      },
-    )
+          const result = await adapter.destroyStore('foo')
+
+          assert(result.ok)
+          assertObjectMatch(del.calls[0], { args: ['foo_baz'] })
+          assertObjectMatch(del.calls[1], { args: ['foo_bar'] })
+          assertObjectMatch(del.calls[2], { args: ['store_foo'] })
+        },
+      )
+    })
+
+    await t.step('with hashSlot', async (t) => {
+      const createAdapter = (redis) => cachePort(factory({ redis, scanCount, hashSlot: true }))
+
+      await t.step(
+        'should remove the keys in the logical keyspace, then remove the logical keyspace',
+        async () => {
+          const del = spy(() => Promise.resolve(2))
+          const adapter = createAdapter({
+            ...baseStubClient,
+            del,
+            scan: resolves(['0', ['{foo}_baz', '{foo}_bar']]),
+          })
+
+          const result = await adapter.destroyStore('foo')
+
+          assert(result.ok)
+          assertObjectMatch(del.calls[0], { args: ['{foo}_baz', '{foo}_bar'] })
+          assertObjectMatch(del.calls[1], { args: ['store_foo'] })
+        },
+      )
+    })
   })
 
   await t.step('createDoc', async (t) => {
