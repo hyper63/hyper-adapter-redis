@@ -6,6 +6,7 @@ const resolves = (val) => () => Promise.resolve(val)
 
 const baseStubClient = {
   get: resolves(),
+  mget: resolves(),
   set: resolves(),
   del: resolves(),
   keys: resolves(),

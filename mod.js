@@ -8,12 +8,14 @@ const { defaultTo, mergeRight, isEmpty } = R
 
 /**
  * @typedef RedisClientArgs
- * @property {string?} hostname
- * @property {number?} port - defaults to 6379
- * @property {string?} url - a connection string that is parsed to determine Redis configuration
- * @property {{ connect: () => Promise<{}> }?} client
- * @property {boolean?} cluster - defaults to false
- * @property {number?} scanCount - The workload size of scan calls. Defaults to 1000
+ * @property {string} [hostname]
+ * @property {number} [port] - defaults to 6379
+ * @property {string} [url] - a connection string that is parsed to determine Redis configuration
+ * @property {{ connect: () => Promise<{}> }} [client]
+ * @property {boolean} [cluster] - defaults to false
+ * @property {number} [scanCount] - The workload size of scan calls. Defaults to 1000
+ * @property {boolean} [hashSlot] - whether to hash all keys in each store to a single slot. This is really only necessary,
+ * if your redis is a cluster. Using the default is recommended. Defaults to true
  *
  * @param {RedisClientArgs} config
  */
@@ -31,7 +33,7 @@ export default function RedisCacheAdapter(config) {
   const setScanCount = (config) => mergeRight({ scanCount: 10000 }, config)
 
   const setClient = Async.fromPromise(async (config) => {
-    const { hostname: _hostname, port: _port, url, cluster, client: _client } = config
+    const { hostname: _hostname, port: _port, url, cluster, client: _client, hashSlot } = config
     const Client = _client || (cluster ? redisCluster : redis)
 
     const configFromUrl = url ? new URL(url) : {}
@@ -53,7 +55,7 @@ export default function RedisCacheAdapter(config) {
       client = await Client.connect({ hostname, port, password })
     }
 
-    return mergeRight(config, { redis: client })
+    return mergeRight(config, { redis: client, hashSlot: hashSlot != null ? hashSlot : true })
   })
 
   return Object.freeze({
@@ -69,6 +71,6 @@ export default function RedisCacheAdapter(config) {
         .chain(setClient)
         .toPromise()
         .catch((e) => console.log('Error: In Load Method', e.message)),
-    link: ({ redis, scanCount }) => (_) => createAdapter({ redis, scanCount }),
+    link: ({ redis, scanCount, hashSlot }) => (_) => createAdapter({ redis, scanCount, hashSlot }),
   })
 }
