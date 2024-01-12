@@ -271,11 +271,10 @@ function getKeys(scan, matcher, count) {
 
 function getValues({ get, mget }, store, count, hashSlot) {
   const prefix = `${createKey(store, '', hashSlot).split('_').shift()}_`
+  count = maxPageSize(count, hashSlot)
 
   return function (keys) {
     function page(keys, values) {
-      count = maxPageSize(count, hashSlot)
-
       const nKeys = keys.splice(0, count)
       return Async.of()
         /**
@@ -320,9 +319,9 @@ function getValues({ get, mget }, store, count, hashSlot) {
 
 function deleteKeys(del, count, hashSlot) {
   return function (keys) {
-    function page(keys) {
-      count = maxPageSize(count, hashSlot)
+    count = maxPageSize(count, hashSlot)
 
+    function page(keys) {
       const nKeys = keys.splice(0, count)
       return Async.of()
         /**
