@@ -22,6 +22,24 @@ const { always, append, identity, ifElse, isNil, not } = R
 const createKey = (prefix, key, hashSlot = true) =>
   `${hashSlot ? `{${prefix}}` : `${prefix}`}_${key}`
 
+/**
+ * Pages sizes above ~2500 will cause maximum callstack exceeded errors
+ * when using Async.all() which uses recursion internally.
+ *
+ * But we only use Async.all() when hashSlots are disabled, to sideskirt CROSSSLOT
+ * errors: see https://github.com/hyper63/hyper-adapter-redis/issues/17
+ *
+ * So if hashSlots are enabled, then we simply return the provided count, nooping. Otherwise,
+ * we return the minimum between count, and our limit of 2500 we have tested to work despite
+ * Async.all()'s implementation.
+ *
+ * This is purely an implementation detail, when performing multi key operations
+ * and so does not impact the consumer:
+ * - listDocs
+ * - deleting all keys in hyper Cache store, as part of destroyStore()
+ */
+const maxPageSize = (count, hashSlot) => hashSlot ? count : Math.min(count, 2500)
+
 const mapTtl = (ttl) =>
   ifElse(
     () => not(isNil(ttl)),
@@ -256,6 +274,8 @@ function getValues({ get, mget }, store, count, hashSlot) {
 
   return function (keys) {
     function page(keys, values) {
+      count = maxPageSize(count, hashSlot)
+
       const nKeys = keys.splice(0, count)
       return Async.of()
         /**
@@ -301,6 +321,8 @@ function getValues({ get, mget }, store, count, hashSlot) {
 function deleteKeys(del, count, hashSlot) {
   return function (keys) {
     function page(keys) {
+      count = maxPageSize(count, hashSlot)
+
       const nKeys = keys.splice(0, count)
       return Async.of()
         /**
