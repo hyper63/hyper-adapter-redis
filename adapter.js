@@ -246,19 +246,19 @@ export default function ({ redis, scanCount, hashSlot = true }) {
 
 function getKeys(scan, matcher, count) {
   function page(cursor, keys) {
+    if (cursor === '0') return Async.of(keys).toPromise()
+
     return scan(cursor, { pattern: matcher, count })
       .map(([nCursor, nKeys]) => {
         keys = keys.concat(nKeys)
 
-        return nCursor === '0'
-          ? keys
-          /**
-           * Return a thunk that continues the next iteration, thus ensuring the callstack
-           * is only ever one call deep.
-           *
-           * This is continuation passing style, to be leverage by our trampoline
-           */
-          : () => page(nCursor, keys)
+        /**
+         * Return a thunk that continues the next iteration, thus ensuring the callstack
+         * is only ever one call deep.
+         *
+         * This is continuation passing style, to be leverage by our trampoline
+         */
+        return () => page(nCursor, keys)
       }).toPromise()
   }
 
@@ -275,6 +275,8 @@ function getValues({ get, mget }, store, count, hashSlot) {
 
   return function (keys) {
     function page(keys, values) {
+      if (!keys.length) return Async.of(values).toPromise()
+
       const nKeys = keys.splice(0, count)
       return Async.of()
         /**
@@ -297,15 +299,13 @@ function getValues({ get, mget }, store, count, hashSlot) {
             })),
           )
 
-          return keys.length === 0
-            ? values
-            /**
-             * Return a thunk that continues the next iteration, thus ensuring the callstack
-             * is only ever one call deep.
-             *
-             * This is continuation passing style, to be leverage by our trampoline
-             */
-            : () => page(keys, values)
+          /**
+           * Return a thunk that continues the next iteration, thus ensuring the callstack
+           * is only ever one call deep.
+           *
+           * This is continuation passing style, to be leverage by our trampoline
+           */
+          return () => page(keys, values)
         }).toPromise()
     }
 
@@ -322,6 +322,8 @@ function deleteKeys(del, count, hashSlot) {
     count = maxPageSize(count, hashSlot)
 
     function page(keys) {
+      if (!keys.length) return Async.of([]).toPromise()
+
       const nKeys = keys.splice(0, count)
       return Async.of()
         /**
@@ -336,17 +338,13 @@ function deleteKeys(del, count, hashSlot) {
          * on any given operation
          */
         .chain(() => hashSlot ? del(...nKeys) : Async.all(nKeys.map((key) => del(key))))
-        .map(() => {
-          return keys.length === 0
-            ? []
-            /**
-             * Return a thunk that continues the next iteration, thus ensuring the callstack
-             * is only ever one call deep.
-             *
-             * This is continuation passing style, to be leverage by our trampoline
-             */
-            : () => page(keys)
-        }).toPromise()
+        /**
+         * Return a thunk that continues the next iteration, thus ensuring the callstack
+         * is only ever one call deep.
+         *
+         * This is continuation passing style, to be leverage by our trampoline
+         */
+        .map(() => () => page(keys)).toPromise()
     }
 
     /**
